@@ -124,7 +124,7 @@ class GRN(nn.Module):
 
 
 # ConvNeXt v2 + GeGLU
-class SourceNetLayer(nn.Module):
+class ConvNeXtLayer(nn.Module):
     def __init__(self, channels=512, kernel_size=7, mlp_mul=3):
         super().__init__()
         padding = kernel_size // 2
@@ -146,6 +146,65 @@ class SourceNetLayer(nn.Module):
         return x
 
 
+# this model estimates fundamental frequency (f0) from latent content
+class PitchEstimator(nn.Module):
+    def __init__(self,
+                 content_channels=192,
+                 internal_channels=512,
+                 num_classes=512,
+                 kernel_size=7,
+                 num_layers=6,
+                 mlp_mul=3,
+                 min_frequency=20.0,
+                 classes_per_octave=48,
+                 ):
+        super().__init__()
+        self.content_channels = content_channels
+        self.num_classes = num_classes
+        self.classes_per_octave = classes_per_octave
+        self.min_frequency = min_frequency
+
+        self.input_layer = nn.Conv1d(content_channels, internal_channels, 1)
+        self.input_norm = LayerNorm(internal_channels)
+        self.mid_layers = nn.Sequential(
+                *[ConvNeXt(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
+        self.output_norm = LayerNorm(internal_channels)
+        self.output_layer = nn.Conv1d(internal_channels, num_classes, 1)
+
+    def forward(self, x):
+        x = self.input_layer(x)
+        x = self.input_norm(x)
+        x = self.mid_layers(x)
+        x = self.output_norm(x)
+        logits = self.output_layer(x)
+        return logits
+
+    def freq2id(self, f):
+        fmin = self.min_frequency
+        cpo = self.classes_per_octave
+        nc = self.num_classes
+        return torch.ceil(torch.clamp(cpo * torch.log2(f / fmin), 0, nc-1)).to(torch.long)
+
+    def id2freq(self, ids):
+        fmin = self.min_frequency
+        cpo = self.classes_per_octave
+        nc = self.num_classes
+
+        x = ids.to(torch.float)
+        x = fmin * (2 ** (x / cpo))
+        x[x <= self.f0_min] = 0
+        return x
+
+    def infer(self, x, k=4):
+        logits = self.forward(x)
+        probs, indices = torch.topk(logits, k, dim=1)
+        probs = F.softmax(probs, dim=1)
+        freqs = self.freq2id(indices)
+        f0 = (probs * freqs).sum(dim=1, keepdim=True)
+        f0[f0 <= self.min_frequency] = 0
+        return f0
+
+
 class SourceNet(nn.Module):
     def __init__(self,
                  content_channels=192,
@@ -158,16 +217,17 @@ class SourceNet(nn.Module):
                  num_layers=6,
                  mlp_mul=3):
         super().__init__()
-        self.input_layer = nn.Conv1d(content_channels, internal_channels)
+        self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
+        self.f0_input = nn.Conv1d(1, internal_channels)
         self.input_norm = LayerNorm(internal_channels)
         self.mid_layers = nn.Sequential(
-                *[SourceNetLayer(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
+                *[ConvNeXt(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
         self.output_norm = LayerNorm(internal_channels)
         self.to_amps = nn.Conv1d(internal_channels, num_harmonics + 1, 1)
         self.to_kernels = nn.Conv1d(internal_channels, n_fft // 2 + 1, 1)
 
-    def forward(self, x):
-        x = self.input_layer(x)
+    def forward(self, x, f0):
+        x = self.content_input(x) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
         x = self.input_norm(x)
         x = self.mid_layers(x)
         x = output_norm(x)
@@ -313,12 +373,17 @@ class FilterNet(nn.Module):
     def __init__(self,
                  content_channels=192,
                  channels=[512, 256, 128, 64, 32],
+                 resblock_type='1',
                  factors=[5, 4, 4, 4, 3],
+                 up_dilations=[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+                 up_kernel_sizes=[3, 7, 11],
+                 down_dilations=[[1, 2], [4, 8]],
                  num_harmonics=30,
                  ):
         super().__init__()
         # input layer
-        self.content_in = weight_norm(nn.Conv1d(input_channels, channels[0], 1))
+        self.content_input = weight_norm(nn.Conv1d(input_channels, channels[0], 1))
+        self.f0_input = weight_norm(nn.Conv1d(1, channels[0], 1))
 
         # downsamples
         self.downs = nn.ModuleList([])
@@ -327,7 +392,7 @@ class FilterNet(nn.Module):
         ns = cs[1:] + [channels[0]]
         fs = list(reversed(factors[1:]))
         for c, n, f, in zip(cs, ns, fs):
-            self.downs.append(DownBlock(c, n, f))
+            self.downs.append(DownBlock(c, n, f, down_dilations))
 
         # upsamples
         self.ups = nn.ModuleList([])
@@ -339,8 +404,8 @@ class FilterNet(nn.Module):
         self.output_layer = weight_norm(
                 nn.Conv1d(channels[-1], 1, 7, 1, 3, padding_mode='replicate'))
 
-    def forward(self, content, source):
-        x = self.content_in(content)
+    def forward(self, content, f0, source):
+        x = self.content_input(content) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
 
         skips = []
         for down in self.downs:
@@ -359,3 +424,43 @@ class FilterNet(nn.Module):
             down.remove_weight_norm()
         for up in self.ups:
             up.remove_weight_norm()
+
+
+class Decoder(nn.Module):
+    def __init__(self,
+                 sample_rate=48000,
+                 frame_size=960,
+                 n_fft=3840,
+                 content_channels=192,
+                 pe_internal_channels=512,
+                 pe_num_layers=6,
+                 source_internal_channels=512,
+                 source_num_layers=6,
+                 num_harmonics=30,
+                 filter_channels=[512, 256, 128, 64, 32],
+                 filter_factors=[5, 4, 4, 4, 3],
+                 filter_resblock_type='1',
+                 filter_down_dilations=[[1, 2], [4, 8]],
+                 filter_up_dilations=[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+                 filter_up_kernel_sizes=[3, 7, 11]):
+        super().__init__()
+        self.pitch_estimator = PitchEstimator(
+                content_channels,
+                pe_internal_channels,
+                num_layers=pe_num_layers)
+        self.source_net = SourceNet(
+                content_channels,
+                source_internal_channels,
+                source_num_layers,
+                frame_size,
+                n_fft,
+                num_harmonics)
+        self.filter_net = FilterNet(
+                content_channels,
+                filter_channels,
+                filter_resblock_type,
+                filter_factors,
+                filter_up_dilations,
+                filter_up_kernel_sizes,
+                filter_down_dilations,
+                num_harmonics)
