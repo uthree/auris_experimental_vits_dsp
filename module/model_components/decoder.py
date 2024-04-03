@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -236,6 +238,7 @@ class SourceNet(nn.Module):
         return amps, kernels
 
 
+# HiFi-GAN's ResBlock1
 class ResBlock1(nn.Module):
     def __init__(self, channels, condition_channels, kernel_size=3, dilations=[1, 3, 5]):
         super().__init__()
@@ -253,6 +256,9 @@ class ResBlock1(nn.Module):
                         nn.Conv1d(channels, channels, kernel_size, 1, padding, 1, padding_mode='replicate')))
             self.films.append(
                     FiLM(channels, condition_channels))
+        self.convs1.apply(init_weights)
+        self.convs2.apply(init_weights)
+        self.films.apply(init_weights)
 
     def forward(self, x, c):
         for c1, c2, film in zip(self.convs1, self.convs2, self.films):
@@ -272,6 +278,52 @@ class ResBlock1(nn.Module):
             film.remove_weight_norm()
 
 
+# HiFi-GAN's ResBlock2
+class ResBlock2(nn.Module):
+    def __init__(self, channels, condition_channels, kernel_size=3, dilations=[1, 3]):
+        super().__init__()
+        self.convs = nn.ModuleList([])
+        self.films = nn.ModuleList([])
+        for d in dilations:
+            padding = get_padding(kernel_size, d)
+            self.convs.append(
+                    weight_norm(
+                        nn.Conv1d(channels, channels, kernel_size, padding, dilation=d, padding_mode='replicate')))
+            self.films.append(FiLM(channels, condition_channels))
+        self.convs.apply(init_weights)
+        self.films.apply(init_weights)
+
+    def forward(self, x, c):
+        for conv, film in zip(self.convs, self.films):
+            res = x
+            x = F.leaky_relu(x, 0.1)
+            x = conv(x)
+            x = film(x, c)
+            x = x + res
+        return x
+
+    def remove_weight_norm(self):
+        for conv, film in zip(self.convs, self.films):
+            conv.remove_weight_norm()
+            film.remove_weight_norm()
+
+
+# TinyVC's Block (from https://github.com/uthree/tinyvc)
+class ResBlock3(nn.Module):
+    def __init__(self, channels, condition_channels, kernel_size=3, dilations=[1, 3, 9, 27]):
+        super().__init__()
+        assert len(dilations) == 4, "Resblock 3's len(dilations) should be 4."
+        #TODO: Implement this
+
+    def forward(self, x, c):
+        #TODO: Implement this
+        pass
+
+    def remove_weight_norm(self):
+        #TODO: Implement this
+        pass
+
+
 class MRF(nn.Module):
     def __init__(self,
                  channels,
@@ -284,6 +336,8 @@ class MRF(nn.Module):
         self.num_blocks = len(kernel_sizes)
         if resblock_type == '1':
             block = ResBlock1
+        elif resblock_type == '2':
+            block = Resblock2
         for k, d in zip(kernel_sizes, dilations):
             self.blocks.append(block(channels, condition_channels, k, d))
 

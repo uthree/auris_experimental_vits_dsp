@@ -1,0 +1,9 @@
+torch
+torchaudio
+tqdm
+numpy
+onnx
+transformers
+pyaudio
+pyworld
+torchfcpe
