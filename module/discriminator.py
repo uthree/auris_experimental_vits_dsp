@@ -113,7 +113,7 @@ class MultiResolutionDiscriminator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self,
                  resolutions=[128, 256, 512],
-                 periods=[1, 2, 3, 5, 7, 11, 17, 23, 31],
+                 periods=[1, 2, 3, 5, 7, 11, 17, 23, 37],
                  mpd_num_layers=4,
                  mrd_num_layers=4,
                  mpd_channels=32,

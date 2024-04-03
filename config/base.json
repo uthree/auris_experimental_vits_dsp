@@ -1,0 +1,62 @@
+{
+	"generator": {
+		"decoder": {
+			"sample_rate": 48000,
+			"frame_size": 960,
+			"n_fft": 3840,
+			"content_channels": 192,
+			"pe_internal_channels": 512,
+			"pe_num_layers": 6,
+			"source_internal_channels": 512,
+			"source_num_layers": 6,
+			"num_harmonics": 30,
+			"filter_channels": [512, 256, 128, 64, 32],
+			"filter_factors": [5, 4, 4, 4, 3],
+			"filter_resblock_type": "1",
+			"filter_down_dilations": [[1, 2], [4, 8]],
+			"filter_up_dilations": [[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+			"filter_up_kernel_sizes": [3, 7, 11],
+		},
+		
+		"posterior_encoder": {
+			"n_fft" : 3840,
+			"internal_channels": 192,
+			"speaker_embedding_dim": 256,
+			"content_channels": 192,
+			"kernel_size": 5,
+			"dilation": 1,
+			"num_layers": 16,
+		},
+
+		"flow": {
+			"content_channels": 192,
+			"internal_channels": 192,
+			"speaker_embedding_dim": 256,
+			"kernel_size": 5,
+			"dilation": 1,
+			"num_layers": 4,
+			"num_flows": 4,
+		},
+
+		"speaker_embedding": {
+			"num_speakers": 8192,
+			"embedding_dim": 256,
+		},
+
+		"text_encoder": {
+		},
+
+		"stochastic_duration_predictor": {
+		},
+	},
+
+	"discriminator": {
+		"resolutions": [128, 256, 512],
+		"periods": [1, 2, 3, 5, 7, 11, 17, 23, 37],
+		"mpd_num_layers": 4,
+		"mrd_num_layers": 4,
+		"mpd_channels": 32,
+		"mrd_channels": 32,
+		"mpd_max_channels": 256,
+	}
+}
