@@ -20,7 +20,7 @@ class PosteriorEncoder(nn.Module):
         self.post = nn.Conv1d(internal_channels, content_channels * 2)
 
     # x: [BatchSize, fft_bin, Length]
-    # Output: [BatchSize, content_channels, Length]
+    # Output z.shape = [BatchSize, content_channels, Length]
     # where fft_bin = input_channels = n_fft // 2 + 1
     def forward(self, x, spk):
         x = self.pre(x)

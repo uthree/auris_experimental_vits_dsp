@@ -29,9 +29,10 @@ class WNLayer(nn.Module):
                 nn.Conv1d(hidden_channels, hidden_channels * 2, 1))
 
     # x: [BatchSize, hidden_channels, Length]
+    # x_mask: [BatchSize, 1, Length]
     # spk: [BatchSize, speaker_embedding_dim, 1]
     # Output: [BatchSize, hidden_channels, Length]
-    def forward(self, x, spk):
+    def forward(self, x, x_mask, spk):
         res = x
         x = x + self.speaker_in(spk)
         x = self.conv(x)
@@ -39,7 +40,8 @@ class WNLayer(nn.Module):
         x = F.tanh(x_0) * F.sigmoid(x_1)
         x = self.out(x)
         out, skip = torch.chunk(x, 2, dim=1)
-        out = out + res
+        out = (out + res) * x_mask
+        skip = skip * x_mask
         return out, skip
 
     def remove_weight_norm(self, x):
@@ -62,12 +64,13 @@ class WN(nn.Module):
                     WNLayer(hidden_channels, kernel_size, dilation, speaker_embedding_dim))
 
     # x: [BatchSize, hidden_channels, Length]
+    # x_mask: [BatchSize, 1, Length]
     # spk: [BatchSize, speaker_embedding_dim, 1]
     # Output: [BatchSize, hidden_channels, Length]
-    def forward(self, x, spk):
+    def forward(self, x, x_mask, spk):
         output = None
         for layer in self.layers:
-            x, skip = layer(x, spk)
+            x, skip = layer(x, x_mask spk)
             if output is None:
                 output = skip
             else:
