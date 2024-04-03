@@ -87,6 +87,8 @@ class FiLM(nn.Module):
         self.to_shift = weight_norm(nn.Conv1d(condition_channels, in_channels, 1))
         self.to_scale = weight_norm(nn.Conv1d(condition_channels, in_channels, 1))
 
+    # x: [BatchSize, in_channels, Length]
+    # c: [BatchSize, condition_channels, Length]
     def forward(self, x, c):
         shift = self.to_shift(c)
         scale = self.to_scale(c)
@@ -104,6 +106,7 @@ class LayerNorm(nn.Module):
         self.shift = nn.Parameter(torch.zeros(1, channels, 1))
         self.eps = eps
 
+    # x: [BatchSize, channels, Length]
     def forward(self, x):
         mu = x.mean(dim=(1, 2), keepdim=True)
         sigma = x.std(dim=(1, 2), keepdim=True) + self.eps
@@ -119,13 +122,14 @@ class GRN(nn.Module):
         self.gamma = nn.Parameter(torch.zeros(1, channels, 1))
         self.eps = eps
 
+    # x: [batchsize, channels, length]
     def forward(self, x):
         gx = torch.norm(x, p=2, dim=2, keepdim=True)
         nx = gx / (gx.mean(dim=1, keepdim=True) + self.eps)
         return self.gamma * (x * nx) + self.beta + x
 
 
-# ConvNeXt v2 + GeGLU
+# ConvNeXt v2
 class ConvNeXtLayer(nn.Module):
     def __init__(self, channels=512, kernel_size=7, mlp_mul=3):
         super().__init__()
@@ -133,17 +137,18 @@ class ConvNeXtLayer(nn.Module):
         self.c1 = nn.Conv1d(channels, channels, kernel_size, 1, padding, groups=channels)
         self.norm = LayerNorm(channels)
         self.c2 = nn.Conv1d(channels, channels * mlp_mul, 1)
-        self.c3 = nn.Conv1d(channels, channels * mlp_mul, 1)
         self.grn = GRN(channels * mlp_mul)
-        self.c4 = nn.Conv1d(channels * mlp_mul, channels, 1)
+        self.c3 = nn.Conv1d(channels * mlp_mul, channels, 1)
 
+    # x: [batchsize, channels, length]
     def forward(self, x):
         res = x
         x = self.c1(x)
         x = self.norm(x)
-        x = self.c2(x) * F.gelu(self.c3(x))
+        x = self.c2(x)
+        x = F.gelu(x)
         x = self.grn(x)
-        x = self.c4(x)
+        x = self.c3(x)
         x = x + res
         return x
 
@@ -173,6 +178,7 @@ class PitchEstimator(nn.Module):
         self.output_norm = LayerNorm(internal_channels)
         self.output_layer = nn.Conv1d(internal_channels, num_classes, 1)
 
+    # x: [BatchSize, content_channels, Length]
     def forward(self, x):
         x = self.input_layer(x)
         x = self.input_norm(x)
@@ -181,12 +187,14 @@ class PitchEstimator(nn.Module):
         logits = self.output_layer(x)
         return logits
 
+    # f: [<Any shape allowed>]
     def freq2id(self, f):
         fmin = self.min_frequency
         cpo = self.classes_per_octave
         nc = self.num_classes
         return torch.ceil(torch.clamp(cpo * torch.log2(f / fmin), 0, nc-1)).to(torch.long)
-
+    
+    # ids: [<Any shape allowed>]
     def id2freq(self, ids):
         fmin = self.min_frequency
         cpo = self.classes_per_octave
@@ -196,7 +204,8 @@ class PitchEstimator(nn.Module):
         x = fmin * (2 ** (x / cpo))
         x[x <= self.f0_min] = 0
         return x
-
+    
+    # x: [BatchSize, content_channels, Length]
     def infer(self, x, k=4):
         logits = self.forward(x)
         probs, indices = torch.topk(logits, k, dim=1)
@@ -228,6 +237,8 @@ class SourceNet(nn.Module):
         self.to_amps = nn.Conv1d(internal_channels, num_harmonics + 1, 1)
         self.to_kernels = nn.Conv1d(internal_channels, n_fft // 2 + 1, 1)
 
+    # x: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
     def forward(self, x, f0):
         x = self.content_input(x) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
         x = self.input_norm(x)
@@ -260,6 +271,8 @@ class ResBlock1(nn.Module):
         self.convs2.apply(init_weights)
         self.films.apply(init_weights)
 
+    # x: [BatchSize, channels, Length]
+    # c: [BatchSize, condition_channels, Length]
     def forward(self, x, c):
         for c1, c2, film in zip(self.convs1, self.convs2, self.films):
             res = x
@@ -293,6 +306,8 @@ class ResBlock2(nn.Module):
         self.convs.apply(init_weights)
         self.films.apply(init_weights)
 
+    # x: [BatchSize, channels, Length]
+    # c: [BatchSize, condition_channels, Length]
     def forward(self, x, c):
         for conv, film in zip(self.convs, self.films):
             res = x
@@ -313,15 +328,43 @@ class ResBlock3(nn.Module):
     def __init__(self, channels, condition_channels, kernel_size=3, dilations=[1, 3, 9, 27]):
         super().__init__()
         assert len(dilations) == 4, "Resblock 3's len(dilations) should be 4."
-        #TODO: Implement this
+        self.convs = nn.ModuleList([])
+        self.films = nn.ModuleList([])
+        for d in dilations:
+            padding = get_padding(kernel_size, d)
+            self.convs.append(
+                    weight_norm(
+                        nn.Conv1d(channels, channels, kernel_size, padding, dilation=d, padding_mode='replicate')))
+        for _ in range(2):
+            self.films.append(
+                    FiLM(channels, condition_channels))
 
+    # x: [BatchSize, channels, Length]
+    # c: [BatchSize, condition_channels, Length]
     def forward(self, x, c):
-        #TODO: Implement this
-        pass
+        res = x
+        x = F.leaky_relu(x, 0.1)
+        x = self.convs[0](x)
+        x = F.leaky_relu(x, 0.1)
+        x = self.convs[1](x)
+        x = self.films[0](x, c)
+        x = x + res
+
+        res = x
+        x = F.leaky_relu(x, 0.1)
+        x = self.convs[2](x)
+        x = F.leaky_relu(x, 0.1)
+        x = self.convs[3](x)
+        x = self.films[1](x, c)
+        x = x + res
+
+        return x
 
     def remove_weight_norm(self):
-        #TODO: Implement this
-        pass
+        for conv in self.convs:
+            remove_weight_norm(conv)
+        for film in self.films:
+            film.remove_weight_norm()
 
 
 class MRF(nn.Module):
@@ -341,6 +384,8 @@ class MRF(nn.Module):
         for k, d in zip(kernel_sizes, dilations):
             self.blocks.append(block(channels, condition_channels, k, d))
 
+    # x: [BatchSize, channels, Length]
+    # c: [BatchSize, condition_channels, Length]
     def forward(self, x, c):
         xs = None
         for block in self.blocks:
@@ -371,6 +416,9 @@ class UpBlock(nn.Module):
         self.pad_left = factor // 2
         self.pad_right = factor - pad_left
 
+    # x: [BatchSize, in_channels, Length]
+    # c: [BatchSize, condition_channels, Length(upsampled)]
+    # Output: [BatchSize, out_channels, Length(upsampled)]
     def forward(self, x, c):
         x = F.leaky_relu(x, 0.1)
         x = self.up_conv(x)
@@ -405,6 +453,8 @@ class DownBlock(nn.Module):
         self.pad = nn.ReplicationPad1d([pad_left, pad_right])
         self.output_conv = weignt_norm(nn.Conv1d(in_channels, out_channels, factor*2, factor))
 
+    # x: [BatchSize, in_channels, Length]
+    # Output: [BatchSize, out_channels, Length]
     def forward(self, x):
         for block in self.convs:
             res = x
@@ -458,6 +508,10 @@ class FilterNet(nn.Module):
         self.output_layer = weight_norm(
                 nn.Conv1d(channels[-1], 1, 7, 1, 3, padding_mode='replicate'))
 
+    # content: [BatchSize, content_channels, Length(frame)]
+    # f0: [BatchSize, 1, Length(frame)]
+    # source: [BatchSize, num_harmonics+2, Length(Waveform)]
+    # Output: [Batchsize, 1, Length(waveform)]
     def forward(self, content, f0, source):
         x = self.content_input(content) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
 

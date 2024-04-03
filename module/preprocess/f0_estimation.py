@@ -47,6 +47,7 @@ def estimate_f0_harvest(wf, sample_rate=4800, segment_size=960, f0_min=20, f0_ma
         pitchs = torch.stack(pitchs, dim=0)
         return pitchs
 
+
 global torchfcpe_model
 torchfcpe_model = None
 def estimate_f0_fcpe(wf, sample_rate=48000, segment_size=960, f0_min=20, f0_max=20000):

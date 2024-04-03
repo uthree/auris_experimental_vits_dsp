@@ -19,6 +19,9 @@ class PosteriorEncoder(nn.Module):
         self.wn = WN(internal_channels, kernel_size, dilation, num_layers, speaker_embedding_dim)
         self.post = nn.Conv1d(internal_channels, content_channels * 2)
 
+    # x: [BatchSize, fft_bin, Length]
+    # Output: [BatchSize, content_channels, Length]
+    # where fft_bin = input_channels = n_fft // 2 + 1
     def forward(self, x, spk):
         x = self.pre(x)
         x = self.wn(x, spk)

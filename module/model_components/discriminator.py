@@ -124,8 +124,8 @@ class Discriminator(nn.Module):
         self.MPD = MultiPeriodicDiscriminator(periods, mpd_channels, mpd_max_channels, mpd_num_layers)
         self.MRD = MultiResolutionDiscriminator(resolutions, mrd_channels, mrd_num_layers)
 
+    # x: [BatchSize, 1, Length(waveform)]
     def forward(self, x):
-        x = x.unsqueeze(1)
         mpd_logits, mpd_feats = self.MPD(x)
         mrd_logits, mrd_feats = self.MRD(x)
         return mpd_logits + mrd_logits, mpd_feats + mrd_feats

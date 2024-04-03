@@ -67,6 +67,9 @@ class Flow(nn.Module):
                         num_layers))
             self.flows.append(Flip())
 
+    # z: [BatchSize, content_channels, Length]
+    # spk: [Batchsize, speaker_embedding_dim, 1]
+    # Output: [BatchSize, content_channels, Length]
     def forward(self, z, spk, reverse=False):
         if not reverse:
             for flow in self.flows:

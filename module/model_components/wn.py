@@ -28,6 +28,9 @@ class WNLayer(nn.Module):
         self.out = weight_norm(
                 nn.Conv1d(hidden_channels, hidden_channels * 2, 1))
 
+    # x: [BatchSize, hidden_channels, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # Output: [BatchSize, hidden_channels, Length]
     def forward(self, x, spk):
         res = x
         x = x + self.speaker_in(spk)
@@ -58,6 +61,9 @@ class WN(nn.Module):
             self.layers.append(
                     WNLayer(hidden_channels, kernel_size, dilation, speaker_embedding_dim))
 
+    # x: [BatchSize, hidden_channels, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # Output: [BatchSize, hidden_channels, Length]
     def forward(self, x, spk):
         output = None
         for layer in self.layers:
