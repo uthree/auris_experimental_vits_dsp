@@ -20,12 +20,27 @@ class PosteriorEncoder(nn.Module):
         self.post = nn.Conv1d(internal_channels, content_channels * 2)
 
     # x: [BatchSize, fft_bin, Length]
-    # Output z.shape = [BatchSize, content_channels, Length]
+    # x_lengths: [BatchSize]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    #
+    # Outputs:
+    #   z: [BatchSize, content_channels, Length]
+    #   mean: [BatchSize, content_channels, Length]
+    #   logvar: [BatchSize, content_channels, Length]
+    #   z_mask: [BatchSize, 1, Length]
+    #
     # where fft_bin = input_channels = n_fft // 2 + 1
-    def forward(self, x, spk):
-        x = self.pre(x)
-        x = self.wn(x, spk)
+    def forward(self, x, x_lengths spk):
+        # generate mask
+        max_length = x.shape[2]
+        progression = torch.arange(max_length, dtype=x_lengths.dtype, device=x_len.device)
+        z_mask = (progression.unsqueeze(0) < x_lengths.unsqueeze(1))
+        z_mask = z_mask.unsqueeze(1).to(x.dtype)
+        
+        # pass network
+        x = self.pre(x) * z_mask
+        x = self.wn(x, z_mask, spk) 
         x = self.post(x)
         mean, logvar = torch.chunk(x, 2, dim=1)
-        z = mean + torch.randn_like(mean) * torch.exp(logvar)
-        return z, mean, logvar
+        z = mean + torch.randn_like(mean) * torch.exp(logvar) * z_mask
+        return z, mean, logvar, z_mask

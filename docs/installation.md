@@ -14,6 +14,9 @@ cd auris
 ```sh
 pip3 install -r requirements.txt
 ```
-??. monotonic_arginをビルドする
-```
+
+3. monotonic_arginをビルドする
+```sh
+cd module/model_components/monotonic_align/
+python3 setup.py build_ext --inplace
 ```

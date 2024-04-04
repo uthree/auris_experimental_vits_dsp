@@ -58,5 +58,6 @@
 		"mpd_channels": 32,
 		"mrd_channels": 32,
 		"mpd_max_channels": 256,
+		"mrd_max_channels": 256,
 	}
 }

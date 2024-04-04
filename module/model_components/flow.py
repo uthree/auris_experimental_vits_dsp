@@ -35,7 +35,7 @@ class ResidualCouplingLayer(nn.Module):
     def forward(self, x, x_mask, spk, reverse=False):
         x_0, x_1 = torch.chunk(x, 2, dim=1)
         h = self.pre(x_0) * x_mask
-        h = self.wn(h, spk)
+        h = self.wn(h, x_mask, spk)
         x_1_mean = self.post(h) * x_mask
 
         if not reverse:
