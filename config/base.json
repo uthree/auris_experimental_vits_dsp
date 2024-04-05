@@ -44,10 +44,34 @@
 		},
 
 		"text_encoder": {
+			"num_phonemes": 256,
+			"num_languages": 256,
+			"lm_dim": 768,
+			"d_model": 256,
+			"content_channels": 192,
+			"nhead": 4,
+			"num_layers": 4,
 		},
 
 		"stochastic_duration_predictor": {
+			"in_channels": 192,
+			"filter_channels": 256,
+			"kernel_size": 5,
+			"p_dropout": 0.1,
+			"speaker_embedding_dim": 256,
 		},
+
+		"duration_predictor": {
+			"in_channels": 192,
+			"filter_channels": 256,
+			"kernel_size": 5,
+			"p_dropout": 0.1,
+			"speaker_embedding_dim": 256,
+		},
+
+		"audio_encoder": {
+			"n_fft": 3840,
+		}
 	},
 
 	"discriminator": {
@@ -59,5 +83,8 @@
 		"mrd_channels": 32,
 		"mpd_max_channels": 256,
 		"mrd_max_channels": 256,
+	},
+
+	"duration_discriminator": {
 	}
 }

@@ -37,7 +37,7 @@ class WNLayer(nn.Module):
         x = x + self.speaker_in(spk)
         x = self.conv(x)
         x_0, x_1 = torch.chunk(x, 2, dim=1)
-        x = F.tanh(x_0) * F.sigmoid(x_1)
+        x = torch.tanh(x_0) * torch.sigmoid(x_1)
         x = self.out(x)
         out, skip = torch.chunk(x, 2, dim=1)
         out = (out + res) * x_mask
@@ -70,7 +70,7 @@ class WN(nn.Module):
     def forward(self, x, x_mask, spk):
         output = None
         for layer in self.layers:
-            x, skip = layer(x, x_mask spk)
+            x, skip = layer(x, x_mask, spk)
             if output is None:
                 output = skip
             else:

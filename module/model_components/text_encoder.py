@@ -52,19 +52,33 @@ class TextEncoder(nn.Module):
         self.transformer = nn.TransformerDecoder(layer, num_layers)
         self.post = nn.Linear(d_model, content_channels * 2)
     
-    # x: [BatchSize, Length]
-    # x_mask: [BatchSize, Length] (bool)
+    # x: [BatchSize, PhonemeLength]
+    # x_length: [BatchSize]
     # y: [BatchSize, LMFeatureLength, lm_dim]
-    # y_mask: [BatchSize, Length] (bool)
+    # y_length: [BatchSize]
     # language_id: [BatchSize]
-    #
-    # note: False = will be replaced 0, True = will be unchanged
     #
     # Outputs:
     #   z: [BatchSize, content_channels, Length]
     #   mean: [BatchSize, content_channels, Length]
     #   logvar: [BatchSize, content_channels, Length]
-    def forward(self, x, x_mask, y, y_mask, language_id):
+    #   z_mask: [BatchSize, 1, PhonemeLength]
+    def forward(self, x, x_length, y, y_length, language_id):
+        # generate mask
+        # x mask
+        max_Length = x.shape[1]
+        progression = torch.arange(max_length, dtype=x_length.dtype, device=x_length.device)
+        x_mask = (progression.unsqueeze(0) < x_length.unsqueeze(1)) #[BatchSize, PhonemeLength]
+
+        # y mask
+        max_length = y.shape[1]
+        progression = torch.arange(max_length, dtype=y_length.dtype, device=y_length.dtype)
+        y_mask = (progression.unsqueeze(0) < y_length.unsqueeze(1)) # [BatchSize, LMFeatureLength]
+
+        # output (z) mask
+        z_mask = x_mask.to(x.dtype).unsqueeze(1) # [BatchSize, 1, PhonemeLength]
+
+        # pass network
         x = self.phoneme_embedding(x)
         x = self.positional_encoding(x)
         lang_emb = self.language_embedding(language_id).unsqueeze(1)
@@ -79,4 +93,4 @@ class TextEncoder(nn.Module):
         x = self.post(x).transpose(1, 2) # [BatchSize, Length, content_channels * 2]
         mean, logvar = torch.chunk(x, 2, dim=1)
         z = mean + torch.randn_like(mean) * torch.exp(logvar)
-        return z, mean, logvar
+        return z, mean, logvar, z_mask
