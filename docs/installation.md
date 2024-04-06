@@ -15,7 +15,8 @@ cd auris
 pip3 install -r requirements.txt
 ```
 
-3. monotonic_arginをビルドする
+3. monotonic_arginをビルドする(任意)   
+(ビルドしない場合はnumba実装が使われる。ビルドしたほうがパフォーマンスが良い。)
 ```sh
 cd module/model_components/monotonic_align/
 python3 setup.py build_ext --inplace

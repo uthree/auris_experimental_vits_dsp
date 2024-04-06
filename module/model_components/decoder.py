@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 from torch.nn.utils import weight_norm, remove_weight_norm
 from .utils import get_padding, init_weights
+from .convnext import ConvNeXtLayer
 
 
 # Oscillate harmonic signal
@@ -97,60 +98,6 @@ class FiLM(nn.Module):
     def remove_weight_norm(self):
         remove_weight_norm(self.to_shift)
         remove_weight_norm(self.to_scale)
-
-
-class LayerNorm(nn.Module):
-    def __init__(self, channels, eps=1e-6):
-        super().__init__()
-        self.scale = nn.Parameter(torch.ones(1, channels, 1))
-        self.shift = nn.Parameter(torch.zeros(1, channels, 1))
-        self.eps = eps
-
-    # x: [BatchSize, channels, Length]
-    def forward(self, x):
-        mu = x.mean(dim=(1, 2), keepdim=True)
-        sigma = x.std(dim=(1, 2), keepdim=True) + self.eps
-        x = (x - mu) / sigma
-        x = x * self.scale + self.shift
-        return x
-
-
-class GRN(nn.Module):
-    def __init__(self, channels, eps=1e-6):
-        super().__init__()
-        self.beta = nn.Parameter(torch.zeros(1, channels, 1))
-        self.gamma = nn.Parameter(torch.zeros(1, channels, 1))
-        self.eps = eps
-
-    # x: [batchsize, channels, length]
-    def forward(self, x):
-        gx = torch.norm(x, p=2, dim=2, keepdim=True)
-        nx = gx / (gx.mean(dim=1, keepdim=True) + self.eps)
-        return self.gamma * (x * nx) + self.beta + x
-
-
-# ConvNeXt v2
-class ConvNeXtLayer(nn.Module):
-    def __init__(self, channels=512, kernel_size=7, mlp_mul=3):
-        super().__init__()
-        padding = kernel_size // 2
-        self.c1 = nn.Conv1d(channels, channels, kernel_size, 1, padding, groups=channels)
-        self.norm = LayerNorm(channels)
-        self.c2 = nn.Conv1d(channels, channels * mlp_mul, 1)
-        self.grn = GRN(channels * mlp_mul)
-        self.c3 = nn.Conv1d(channels * mlp_mul, channels, 1)
-
-    # x: [batchsize, channels, length]
-    def forward(self, x):
-        res = x
-        x = self.c1(x)
-        x = self.norm(x)
-        x = self.c2(x)
-        x = F.gelu(x)
-        x = self.grn(x)
-        x = self.c3(x)
-        x = x + res
-        return x
 
 
 # this model estimates fundamental frequency (f0) from latent content

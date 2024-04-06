@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .transforms import piecewise_rational_quadratic_transform
+from .normalization import LayerNorm
 
 
 DEFAULT_MIN_BIN_WIDTH = 1e-3
@@ -19,20 +20,6 @@ class Flip(nn.Module):
             return x, logdet
         else:
             return x
-
-
-class LayerNorm(nn.Module):
-    def __init__(self, channels, eps=1e-5):
-        super().__init__()
-        self.channels = channels
-        self.eps = eps
-
-        self.gamma = nn.Parameter(torch.ones(channels))
-        self.beta = nn.Parameter(torch.zeros(channels))
-
-    def forward(self, x: torch.Tensor):
-        x = F.layer_norm(x.mT, (self.channels,), self.gamma, self.beta, self.eps)
-        return x.mT
 
 
 class StochasticDurationPredictor(nn.Module):
