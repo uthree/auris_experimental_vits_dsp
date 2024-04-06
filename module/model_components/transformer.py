@@ -2,8 +2,7 @@ import math
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-from .utils import convert_pad_shape
+from module.utils.common import convert_pad_shape
 from .normalization import LayerNorm
 
 

@@ -4,6 +4,9 @@ import torch.nn.functional as F
 import numpy as np
 
 
+# transforms for stochasitc duration predictor
+
+
 DEFAULT_MIN_BIN_WIDTH = 1e-3
 DEFAULT_MIN_BIN_HEIGHT = 1e-3
 DEFAULT_MIN_DERIVATIVE = 1e-3

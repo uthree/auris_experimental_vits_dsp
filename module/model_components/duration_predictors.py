@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .transforms import piecewise_rational_quadratic_transform
+from module.utils import piecewise_rational_quadratic_transform
 from .normalization import LayerNorm
 
 

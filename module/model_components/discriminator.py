@@ -2,9 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-def get_padding(kernel_size, dilation=1):
-    return int((kernel_size*dilation - dilation)/2)
+from module.utils.common import get_padding
 
 
 class DiscriminatorP(nn.Module):
