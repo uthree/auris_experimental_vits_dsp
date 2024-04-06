@@ -4,3 +4,8 @@
 ## 目次
 - [クレジット表記](docs/credits.md)
 - [インストール方法](docs/installation.md)
+- [コンフィグについて](docs/config.md)
+- [技術的な詳細](docs/technical_details.md)
+
+## Other Languages
+- [English](docs/readme_en.md) (comming soon)

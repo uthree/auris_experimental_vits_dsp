@@ -15,7 +15,7 @@
 			"filter_resblock_type": "3",
 			"filter_down_dilations": [[1, 2, 4]],
 			"filter_up_dilations": [[1, 3, 9, 27]],
-			"filter_up_kernel_sizes": [3],
+			"filter_up_kernel_sizes": [3]
 		},
 		
 		"posterior_encoder": {
@@ -25,7 +25,7 @@
 			"content_channels": 192,
 			"kernel_size": 5,
 			"dilation": 1,
-			"num_layers": 16,
+			"num_layers": 16
 		},
 
 		"flow": {
@@ -35,12 +35,12 @@
 			"kernel_size": 5,
 			"dilation": 1,
 			"num_layers": 4,
-			"num_flows": 4,
+			"num_flows": 4
 		},
 
 		"speaker_embedding": {
 			"num_speakers": 8192,
-			"embedding_dim": 256,
+			"embedding_dim": 256
 		},
 
 		"text_encoder": {
@@ -50,7 +50,7 @@
 			"d_model": 256,
 			"content_channels": 192,
 			"nhead": 4,
-			"num_layers": 4,
+			"num_layers": 4
 		},
 
 		"stochastic_duration_predictor": {
@@ -58,7 +58,7 @@
 			"filter_channels": 256,
 			"kernel_size": 5,
 			"p_dropout": 0.0,
-			"speaker_embedding_dim": 256,
+			"speaker_embedding_dim": 256
 		},
 
 		"duration_predictor": {
@@ -66,7 +66,7 @@
 			"filter_channels": 256,
 			"kernel_size": 5,
 			"p_dropout": 0.0,
-			"speaker_embedding_dim": 256,
+			"speaker_embedding_dim": 256
 		},
 
 		"audio_encoder": {
@@ -74,7 +74,7 @@
 			"internal_channels": 192,
 			"content_channels": 192,
 			"kernel_size": 7,
-			"num_layers": 4,
+			"num_layers": 4
 		}
 	},
 
@@ -86,7 +86,7 @@
 		"mpd_channels": 32,
 		"mrd_channels": 32,
 		"mpd_max_channels": 256,
-		"mrd_max_channels": 256,
+		"mrd_max_channels": 256
 	},
 
 	"training": {
@@ -95,6 +95,6 @@
 		},
 		"tts": {
 
-		},
-	},
+		}
+	}
 }
