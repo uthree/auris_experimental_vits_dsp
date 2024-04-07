@@ -14,11 +14,11 @@ class LanguageModelProcessor:
         ext_constructor = get_extractor(extractor_type)
         self.extractor = ext_constructor(**options)
 
-    def extract_linguistic_features(self, x, max_length: int):
-        if type(x) == list:
-            return self._ext_multiple(x, max_length)
-        elif type(x) == str:
-            return self._ext_single(x, max_length)
+    def encode(self, sentences, max_length: int):
+        if type(sentences) == list:
+            return self._ext_multiple(sentences, max_length)
+        elif type(sentences) == str:
+            return self._ext_single(sentences, max_length)
 
     def _ext_single(self, sentence, max_length: int):
         features, length = self.extractor.extract(sentence)

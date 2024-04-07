@@ -98,19 +98,22 @@
 	},
 
 	"preprocess": {
+		"sample_rate": 48000,
 		"max_waveform_length": 480000,
 		"pitch_estimation": "fcpe",
 		"max_phonemes": 50,
-		"cache_directory": "dataset_cache"
+		"lm_max_tokens": 30,
+		"frame_size": 960,
+		"cache": "dataset_cache"
 	},
 
 	"language_model": {
 		"type": "rinna_roberta",
 		"options": {
 			"hf_repo": "rinna/japanese-roberta-base",
-			"layer": 12,
+			"layer": 12
 		}
-	}
+	},
 
 	"train": {
 		"reconstruction": {

@@ -59,6 +59,7 @@ def estimate_f0_fcpe(wf, sample_rate=48000, segment_size=960, f0_min=20, f0_max=
     return f0.transpose(1, 2)
 
 
+# wf: [BatchSize, Length]
 def estimate_f0(wf, sample_rate=48000, segment_size=960, algorithm='harvest'):
     l = wf.shape[1]
     if algorithm == 'harvest':

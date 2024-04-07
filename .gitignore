@@ -169,3 +169,4 @@ cython_debug/
 *.swo
 module/model_components/monotonic_align/core.c
 module/model_components/monotonic_align/build/*
+dataset_cache/*
