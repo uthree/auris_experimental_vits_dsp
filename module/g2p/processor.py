@@ -1,9 +1,8 @@
 from typing import List, Union, Tuple
 import torch
-from .module import G2PModule
 
-from .japanese import JapaneseG2PModule
-from .english import EnglishG2PModule
+from .japanese import JapaneseExtractor
+from .english import EnglishExtractor
 
 
 def unique(l: List):
@@ -12,20 +11,20 @@ def unique(l: List):
 
 class G2PProcessor:
     def __init__(self):
-        self.g2p_modules = {}
+        self.extractors = {}
 
         # If you want to add a language, add processing here
         # ---
-        self.g2p_modules['ja'] = JapaneseG2PModule()
-        self.g2p_modules['en'] = EnglishG2PModule()
+        self.extractors['ja'] = JapaneseExtractor()
+        self.extractors['en'] = EnglishExtractor()
         # ---
 
         self.phoneme_vocabs = ['<pad>']
-        for mod in self.g2p_modules.values():
+        for mod in self.extractors.values():
             self.phoneme_vocabs += mod.possible_phonemes()
         self.phoneme_vocabs = unique(self.phoneme_vocabs)
         self.languages = ['unknown']
-        self.languages += self.g2p_modules.keys()
+        self.languages += self.extractors.keys()
 
     def grapheme_to_phoneme(self, text: Union[str, List[str]], language: Union[str, List[str]]):
         if type(text) == list:
@@ -34,7 +33,7 @@ class G2PProcessor:
             return self._g2p_single(text, language)
 
     def _g2p_single(self, text, language):
-        mod = self.g2p_modules[language]
+        mod = self.extractors[language]
         return mod.g2p(text)
 
     def _g2p_multiple(self, text, language):

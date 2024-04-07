@@ -4,6 +4,7 @@
 ## 目次
 - [クレジット表記](docs/credits.md)
 - [インストール方法](docs/installation.md)
+- [学習方法](docs/training.md)
 - [コンフィグについて](docs/config.md)
 - [技術的な詳細](docs/technical_details.md)
 

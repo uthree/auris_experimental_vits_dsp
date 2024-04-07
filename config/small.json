@@ -44,7 +44,7 @@
 		},
 
 		"text_encoder": {
-			"num_phonemes": 256,
+			"num_phonemes": 512,
 			"num_languages": 256,
 			"lm_dim": 768,
 			"d_model": 256,
@@ -94,14 +94,23 @@
 		"speaker_embedding_dim": 256,
 		"internal_channels": 256,
 		"kernel_size": 7,
-		"num_layers": 4,
+		"num_layers": 4
 	},
 
 	"preprocess": {
 		"max_waveform_length": 480000,
 		"pitch_estimation": "fcpe",
 		"max_phonemes": 50,
+		"cache_directory": "dataset_cache"
 	},
+
+	"language_model": {
+		"type": "rinna_roberta",
+		"options": {
+			"hf_repo": "rinna/japanese-roberta-base",
+			"layer": 12,
+		}
+	}
 
 	"train": {
 		"reconstruction": {

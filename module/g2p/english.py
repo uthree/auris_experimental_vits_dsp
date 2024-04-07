@@ -1,8 +1,8 @@
-from .module import G2PModule
+from .extractor import PhoneticExtractor
 from g2p_en import G2p
 
 
-class EnglishG2PModule(G2PModule):
+class EnglishExtractor(PhoneticExtractor):
     def __init__(self):
         super().__init__()
         self.g2p_instance = G2p()

@@ -8,7 +8,7 @@ from .transformer import RelativePositionTransformerDecoder
 class TextEncoder(nn.Module):
     def __init__(
             self,
-            num_phonemes=256,
+            num_phonemes=512,
             num_languages=256,
             internal_channels=256,
             content_channels=192,

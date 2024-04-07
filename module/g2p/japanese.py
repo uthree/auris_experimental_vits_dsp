@@ -1,8 +1,8 @@
-from .module import G2PModule
+from .extractor import PhoneticExtractor
 import pyopenjtalk
 
 
-class JapaneseG2PModule(G2PModule):
+class JapaneseExtractor(PhoneticExtractor):
     def __init__(self):
         super().__init__()
 

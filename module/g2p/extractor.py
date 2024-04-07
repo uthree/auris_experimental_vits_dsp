@@ -3,7 +3,7 @@ from typing import List
 
 # grapheme-to-phoneme module base class
 # Create a module by inheriting this class for each language.
-class G2PModule():
+class PhoneticExtractor():
     def __init__(self, *args, **kwargs):
         pass
 
