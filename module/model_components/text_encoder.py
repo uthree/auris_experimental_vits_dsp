@@ -55,14 +55,14 @@ class TextEncoder(nn.Module):
     def forward(self, x, x_length, y, y_length, lang):
         # generate mask
         # x mask
-        max_length = x.shape[2]
+        max_length = x.shape[1]
         progression = torch.arange(max_length, dtype=x_length.dtype, device=x_length.device)
         x_mask = (progression.unsqueeze(0) < x_length.unsqueeze(1))
         x_mask = x_mask.unsqueeze(1).to(x.dtype)
         z_mask = x_mask
 
         # y mask
-        max_length = y.shape[2]
+        max_length = y.shape[1]
         progression = torch.arange(max_length, dtype=y_length.dtype, device=y_length.device)
         y_mask = (progression.unsqueeze(0) < y_length.unsqueeze(1))
         y_mask = y_mask.unsqueeze(1).to(y.dtype)
@@ -75,7 +75,7 @@ class TextEncoder(nn.Module):
         x = x + lang # language conditioning
         x = x.mT # [B, C, Lx]
         x = self.transformer(x, x_mask, y, y_mask) # [B, C, Lx]
-        x = post(x) * x_mask # [B, 2C, Lx]
+        x = self.post(x) * x_mask # [B, 2C, Lx]
         mean, logvar = torch.chunk(x, 2, dim=1)
         z = mean + torch.randn_like(mean) * torch.exp(logvar) * z_mask
         return z, mean, logvar, z_mask

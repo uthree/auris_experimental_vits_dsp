@@ -1,4 +1,5 @@
 import math
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -89,7 +90,7 @@ class RelativePositionTransformerDecoder(nn.Module):
     # Output: [BatchSize, hidden_channels, Length_x]
     def forward(self, x: torch.Tensor, x_mask: torch.Tensor, y: torch.Tensor, y_mask: torch.Tensor):
         self_attn_mask = x_mask.unsqueeze(2) * x_mask.unsqueeze(-1)
-        cross_attn_mask = y_mask.unsqueeze(2) * x_mask_unsqueeze(-1)
+        cross_attn_mask = y_mask.unsqueeze(2) * x_mask.unsqueeze(-1)
         x = x * x_mask
         for i in range(self.n_layers):
             res = x

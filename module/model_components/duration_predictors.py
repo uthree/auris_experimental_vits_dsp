@@ -3,8 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from module.utils import piecewise_rational_quadratic_transform
+from module.utils.transforms import piecewise_rational_quadratic_transform
 from .normalization import LayerNorm
+from .convnext import ConvNeXtLayer
 
 
 DEFAULT_MIN_BIN_WIDTH = 1e-3
@@ -23,7 +24,15 @@ class Flip(nn.Module):
 
 
 class StochasticDurationPredictor(nn.Module):
-    def __init__(self, in_channels, filter_channels, kernel_size, p_dropout, n_flows=4, speaker_embedding_dim=256):
+    def __init__(
+            self,
+            in_channels=192,
+            filter_channels=256,
+            kernel_size=5,
+            p_dropout=0.0,
+            n_flows=4,
+            speaker_embedding_dim=256
+            ):
         super().__init__()
         self.log_flow = Log()
         self.flows = nn.ModuleList()
@@ -53,6 +62,8 @@ class StochasticDurationPredictor(nn.Module):
     # x: [BatchSize, in_chanels, Length]
     # x_mask [BatchSize, 1, Length]
     # g: [BatchSize, speaker_embedding_dim, 1]
+    # w: Optional, Training only shape=[BatchSize, ?, Length]
+    # Output: [BatchSize, 1, Length]
     #
     # note: g is speaker embedding
     def forward(self, x: torch.Tensor, x_mask: torch.Tensor, w=None, g=None, reverse=False, noise_scale=1.0):
@@ -207,35 +218,26 @@ class ElementwiseAffine(nn.Module):
 
 
 class DurationPredictor(nn.Module):
-    def __init__(self, in_channels, filter_channels, kernel_size, p_dropout, speaker_embedding_dim=256):
+    def __init__(self,
+                 content_channels=192,
+                 internal_channels=256,
+                 speaker_embedding_dim=256,
+                 kernel_size=7,
+                 num_layers=4):
         super().__init__()
-        self.drop = nn.Dropout(p_dropout)
-        self.conv_1 = nn.Conv1d(in_channels, filter_channels, kernel_size, padding=kernel_size // 2)
-        self.norm_1 = LayerNorm(filter_channels)
-        self.conv_2 = nn.Conv1d(filter_channels, filter_channels, kernel_size, padding=kernel_size // 2)
-        self.norm_2 = LayerNorm(filter_channels)
-        self.proj = nn.Linear(filter_channels, 1)
+        self.input_layer = nn.Conv1d(content_channels, internal_channels, 1)
+        self.input_norm = LayerNorm(internal_channels)
+        self.mid_layers = nn.ModuleList()
+        for _ in range(num_layers):
+            self.mid_layers.append(ConvNeXtLayer(internal_channels, kernel_size))
+        self.output_norm = LayerNorm(internal_channels)
+        self.output_layer = nn.Conv1d(internal_channels, 1, 1)
 
-        if speaker_embedding_dim != 0:
-            self.cond = nn.Linear(speaker_embedding_dim, in_channels)
-
-    # x: [BatchSize, in_chanels, Length]
-    # x_mask [BatchSize, 1, Length]
-    # g: [BatchSize, speaker_embedding_dim, 1]
-    #
-    # note: g is speaker embedding
-    def forward(self, x, x_mask, g=None):
-        x = torch.detach(x)
-        if g is not None:
-            g = torch.detach(g)
-            x = x + self.cond(g.mT).mT
-        x = self.conv_1(x * x_mask)
-        x = torch.relu(x)
-        x = self.norm_1(x)
-        x = self.drop(x)
-        x = self.conv_2(x * x_mask)
-        x = torch.relu(x)
-        x = self.norm_2(x)
-        x = self.drop(x)
-        x = self.proj((x * x_mask).mT).mT
-        return x * x_mask
+    def forward(self, x, x_mask):
+        x = self.input_layer(x) * x_mask
+        x = self.input_norm(x) * x_mask
+        for layer in self.mid_layers:
+            x = layer(x) * x_mask
+        x = self.output_norm(x) * x_mask
+        x = self.output_layer(x) * x_mask
+        return x

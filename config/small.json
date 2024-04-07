@@ -6,11 +6,11 @@
 			"n_fft": 3840,
 			"content_channels": 192,
 			"pe_internal_channels": 256,
-			"pe_num_layers": 3,
+			"pe_num_layers": 4,
 			"source_internal_channels": 256,
 			"source_num_layers": 3,
-			"num_harmonics": 22,
-			"filter_channels": [384, 192, 96, 48, 26],
+			"num_harmonics": 14,
+			"filter_channels": [384, 192, 96, 48, 24],
 			"filter_factors": [3, 4, 4, 4, 5],
 			"filter_resblock_type": "3",
 			"filter_down_dilations": [[1, 2, 4]],
@@ -62,11 +62,11 @@
 		},
 
 		"duration_predictor": {
-			"in_channels": 192,
-			"filter_channels": 256,
-			"kernel_size": 5,
-			"p_dropout": 0.0,
-			"speaker_embedding_dim": 256
+			"content_channels": 192,
+			"internal_channels": 256,
+			"speaker_embedding_dim": 256,
+			"kernel_size": 7,
+			"num_layers": 4
 		},
 
 		"audio_encoder": {
@@ -89,12 +89,28 @@
 		"mrd_max_channels": 256
 	},
 
-	"training": {
-		"reconstruction": {
+	"duration_discriminator": {
+		"content_channels": 192,
+		"speaker_embedding_dim": 256,
+		"internal_channels": 256,
+		"kernel_size": 7,
+		"num_layers": 4,
+	},
 
+	"preprocess": {
+		"max_length": 480000
+	},
+
+	"train": {
+		"reconstruction": {
+			"steps": 100000,
+			"batch_size": 8,
+			"gradient_accumulation": 1
 		},
 		"tts": {
-
+			"steps": 100000,
+			"batch_size": 4,
+			"gradient_accumulation": 2
 		}
 	}
 }

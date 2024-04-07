@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 from torch.nn.utils import weight_norm, remove_weight_norm
 from module.utils.common import get_padding, init_weights
+from .normalization import LayerNorm
 from .convnext import ConvNeXtLayer
 
 
@@ -13,20 +14,19 @@ from .convnext import ConvNeXtLayer
 #
 # Inputs ---
 # f0: [BatchSize, 1, Frames]
-# uv: [BatchSize, 1, Frames], voiced = 1.0, unvocied = 0.0
 #
 # frame_size: int
-# num_harmonics: int
+# sample_rate: float or int
 # min_frequency: float
-# noise_scale: float
+# num_harmonics: int
 #
 # Output: [BatchSize, NumHarmonics, Length]
 #
 # length = Frames * frame_size
 def oscillate_harmonics(f0,
-                        uv,
                         frame_size=960,
                         sample_rate=48000,
+                        min_frequency=20.0,
                         num_harmonics=0):
     N = f0.shape[0]
     C = num_harmonics + 1
@@ -42,6 +42,7 @@ def oscillate_harmonics(f0,
     fs = F.interpolate(f0, Lw, mode='linear') * mul
 
     # unvoiced / voiced mask
+    uv = (f0 >= min_frequency).to(torch.float)
     uv = F.interpolate(uv, Lw, mode='linear')
 
     # generate harmonics
@@ -53,18 +54,18 @@ def oscillate_harmonics(f0,
     return harmonics.to(device)
 
 
-# Oscillate aperiodic signal
+# Oscillate noise
 #
 # fft_bin = n_fft // 2 + 1
 # kernels: [BatchSize, fft_bin, Frames]
 #
 # Output: [BatchSize, 1, Frames * frame_size]
-def oscillate_aperiodic_signal(kernels, frame_size=960, n_fft=3840):
+def oscillate_noise(kernels, frame_size=960, n_fft=3840):
     device = kernels.device
     N = kernels.shape[0]
     Lf = kernels.shape[2] # frame length
     Lw = Lf * frame_size # waveform length
-    dtype = kernels.dtype()
+    dtype = kernels.dtype
 
     gaussian_noise = torch.randn(N, Lw, device=device, dtype=torch.float)
     kernels = kernels.to(torch.float) # to fp32
@@ -73,7 +74,7 @@ def oscillate_aperiodic_signal(kernels, frame_size=960, n_fft=3840):
     # Since the input is an aperiodic signal such as Gaussian noise,
     # there is no need to consider the phase on the kernel side.
     w = torch.hann_window(n_fft, dtype=torch.float, device=device)
-    noise_stft = torch.stft(gaussian_noise, n_fft, frame_size, window=w)[:, :, 1:]
+    noise_stft = torch.stft(gaussian_noise, n_fft, frame_size, window=w, return_complex=True)[:, :, 1:]
     y_stft = noise_stft * kernels # In fourier domain, Multiplication means convolution.
     y_stft = F.pad(y_stft, [1, 0]) # pad
     y = torch.istft(y_stft, n_fft, frame_size, window=w)
@@ -121,7 +122,7 @@ class PitchEstimator(nn.Module):
         self.input_layer = nn.Conv1d(content_channels, internal_channels, 1)
         self.input_norm = LayerNorm(internal_channels)
         self.mid_layers = nn.Sequential(
-                *[ConvNeXt(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
+                *[ConvNeXtLayer(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
         self.output_norm = LayerNorm(internal_channels)
         self.output_layer = nn.Conv1d(internal_channels, num_classes, 1)
 
@@ -176,10 +177,10 @@ class SourceNet(nn.Module):
                  mlp_mul=3):
         super().__init__()
         self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
-        self.f0_input = nn.Conv1d(1, internal_channels)
+        self.f0_input = nn.Conv1d(1, internal_channels, 1)
         self.input_norm = LayerNorm(internal_channels)
         self.mid_layers = nn.Sequential(
-                *[ConvNeXt(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
+                *[ConvNeXtLayer(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
         self.output_norm = LayerNorm(internal_channels)
         self.to_amps = nn.Conv1d(internal_channels, num_harmonics + 1, 1)
         self.to_kernels = nn.Conv1d(internal_channels, n_fft // 2 + 1, 1)
@@ -190,7 +191,7 @@ class SourceNet(nn.Module):
         x = self.content_input(x) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
         x = self.input_norm(x)
         x = self.mid_layers(x)
-        x = output_norm(x)
+        x = self.output_norm(x)
         amps = self.to_amps(x)
         kernels = self.to_kernels(x)
         return amps, kernels
@@ -205,10 +206,11 @@ class ResBlock1(nn.Module):
         self.films = nn.ModuleList([])
 
         for d in dilations:
-            padding = get_padding(kernel_size, d)
+            padding = get_padding(kernel_size, 1)
             self.convs1.append(
                     weight_norm(
                         nn.Conv1d(channels, channels, kernel_size, 1, padding, dilation=d, padding_mode='replicate')))
+            padding = get_padding(kernel_size, d)
             self.convs2.append(
                     weight_norm(
                         nn.Conv1d(channels, channels, kernel_size, 1, padding, 1, padding_mode='replicate')))
@@ -361,7 +363,7 @@ class UpBlock(nn.Module):
         self.up_conv = weight_norm(
                 nn.ConvTranspose1d(in_channels, out_channels, factor*2, factor))
         self.pad_left = factor // 2
-        self.pad_right = factor - pad_left
+        self.pad_right = factor - self.pad_left
 
     # x: [BatchSize, in_channels, Length]
     # c: [BatchSize, condition_channels, Length(upsampled)]
@@ -370,7 +372,7 @@ class UpBlock(nn.Module):
         x = F.leaky_relu(x, 0.1)
         x = self.up_conv(x)
         x = x[:, :, self.pad_left:-self.pad_right]
-        x = self.mrf(x, c)
+        x = self.MRF(x, c)
         return x
 
     def remove_weight_norm(self):
@@ -396,9 +398,9 @@ class DownBlock(nn.Module):
                             nn.Conv1d(in_channels, in_channels, kernel_size, 1, padding, dilation=d, padding_mode='replicate')))
             self.convs.append(cs)
         pad_left = factor // 2
-        pad_right factor - pad_left
+        pad_right = factor - pad_left
         self.pad = nn.ReplicationPad1d([pad_left, pad_right])
-        self.output_conv = weignt_norm(nn.Conv1d(in_channels, out_channels, factor*2, factor))
+        self.output_conv = weight_norm(nn.Conv1d(in_channels, out_channels, factor*2, factor))
 
     # x: [BatchSize, in_channels, Length]
     # Output: [BatchSize, out_channels, Length]
@@ -433,7 +435,7 @@ class FilterNet(nn.Module):
                  ):
         super().__init__()
         # input layer
-        self.content_input = weight_norm(nn.Conv1d(input_channels, channels[0], 1))
+        self.content_input = weight_norm(nn.Conv1d(content_channels, channels[0], 1))
         self.f0_input = weight_norm(nn.Conv1d(1, channels[0], 1))
 
         # downsamples
@@ -458,7 +460,7 @@ class FilterNet(nn.Module):
     # content: [BatchSize, content_channels, Length(frame)]
     # f0: [BatchSize, 1, Length(frame)]
     # source: [BatchSize, num_harmonics+2, Length(Waveform)]
-    # Output: [Batchsize, 1, Length(waveform)]
+    # Output: [Batchsize, 1, Length * frame_size]
     def forward(self, content, f0, source):
         x = self.content_input(content) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
 
@@ -499,6 +501,10 @@ class Decoder(nn.Module):
                  filter_up_dilations=[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
                  filter_up_kernel_sizes=[3, 7, 11]):
         super().__init__()
+        self.frame_size = frame_size
+        self.n_fft = n_fft
+        self.sample_rate = sample_rate
+        self.num_harmonics = num_harmonics
         self.pitch_estimator = PitchEstimator(
                 content_channels,
                 pe_internal_channels,
@@ -519,3 +525,20 @@ class Decoder(nn.Module):
                 filter_up_kernel_sizes,
                 filter_down_dilations,
                 num_harmonics)
+
+    # content: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # Output: [BatchSize, 1, Length * frame_size]
+    def infer(self, content, f0=None):
+        if f0 is None:
+            f0 = self.pitch_estimator.infer(content)
+        amps, kernels = self.source_net(content, f0)
+
+        # oscillate source signals
+        harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
+        noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
+        source = torch.cat([harmonics, noise], dim=1)
+
+        # filter network
+        output = self.filter_net(content, f0, source)
+        return output

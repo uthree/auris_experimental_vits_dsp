@@ -18,7 +18,7 @@ MITライセンスのリポジトリからソースコードをコピペした�
 - [zassou65535/VITS](https://github.com/zassou65535/VITS) : zassou氏によるVITS実装。 posterior_encoder.pyをはじめとする実装や、ディレクトリ構成などを参考にした。
 - [RVC-Project/Retrieval-based-Voice-Conversion-WebUI](https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI) : いわゆるRVC, HnNSF-HifiGANによるピッチ制御可能なデコーダーや、特徴量ベクトルを検索するという案は、RVCから着想を得ている。
 - [fishaudio/Bert-VITS2](https://github.com/fishaudio/Bert-VITS2) : VITSのテキストエンコーダー部分にBERTの特徴量を付与し、感情や文脈などもエンコードできるようにするという案は、Bert-VITS2から着想を得ている。
-- [uthree/tinyvc](https://github.com/uthree/tinyvc) 自分のリポジトリを参考にするとはどういうことだ、と言われそうだが、TinyVCのデコーダーをそのままスケールアップして採用している。
+- [uthree/tinyvc](https://github.com/uthree/tinyvc) 自分のリポジトリを参考にするとはどういうことだ、と言われそうだが、TinyVCのデコーダーをほぼそのままスケールアップして採用している。
 
 ### 論文
 参考にした論文。正直たくさんありすぎてすべて書くだけで疲れる。

@@ -6,7 +6,7 @@ from .wn import WN
 
 class Flip(nn.Module):
     def forward(self, x, *args, **kwargs):
-        x = torch.flip(x, dim=1)
+        x = torch.flip(x, [1])
         return x
 
 
@@ -39,7 +39,7 @@ class ResidualCouplingLayer(nn.Module):
         x_1_mean = self.post(h) * x_mask
 
         if not reverse:
-            x_1 = x1_mean + x1 * x_mask
+            x_1 = x_1_mean + x_1 * x_mask
         else:
             x_1 = (x_1 - x_1_mean) * x_mask
 
@@ -52,7 +52,7 @@ class Flow(nn.Module):
                  content_channels=192,
                  internal_channels=192,
                  speaker_embedding_dim=256,
-                 ketnel_size=5,
+                 kernel_size=5,
                  dilation=1,
                  num_flows=4,
                  num_layers=4):
