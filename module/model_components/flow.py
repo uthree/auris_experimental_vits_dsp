@@ -31,11 +31,11 @@ class ResidualCouplingLayer(nn.Module):
 
     # x: [BatchSize, in_channels, Length]
     # x_mask: [BatchSize, 1, Length]
-    # spk: [BatchSize, speaker_embedding_dim, 1]
-    def forward(self, x, x_mask, spk, reverse=False):
+    # g: [BatchSize, speaker_embedding_dim, 1]
+    def forward(self, x, x_mask, g, reverse=False):
         x_0, x_1 = torch.chunk(x, 2, dim=1)
         h = self.pre(x_0) * x_mask
-        h = self.wn(h, x_mask, spk)
+        h = self.wn(h, x_mask, g)
         x_1_mean = self.post(h) * x_mask
 
         if not reverse:
@@ -72,13 +72,13 @@ class Flow(nn.Module):
 
     # z: [BatchSize, content_channels, Length]
     # z_mask: [BatchSize, 1, Length]
-    # spk: [Batchsize, speaker_embedding_dim, 1]
+    # g: [Batchsize, speaker_embedding_dim, 1]
     # Output: [BatchSize, content_channels, Length]
-    def forward(self, z, z_mask, spk, reverse=False):
+    def forward(self, z, z_mask, g, reverse=False):
         if not reverse:
             for flow in self.flows:
-                z = flow(z, z_mask, spk, reverse=False)
+                z = flow(z, z_mask, g, reverse=False)
         else:
             for flow in reversed(self.flows):
-                z = flow(z, z_mask, spk, reverse=True)
+                z = flow(z, z_mask, g, reverse=True)
         return z

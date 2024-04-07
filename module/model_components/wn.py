@@ -30,11 +30,11 @@ class WNLayer(nn.Module):
 
     # x: [BatchSize, hidden_channels, Length]
     # x_mask: [BatchSize, 1, Length]
-    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # g: [BatchSize, speaker_embedding_dim, 1]
     # Output: [BatchSize, hidden_channels, Length]
-    def forward(self, x, x_mask, spk):
+    def forward(self, x, x_mask, g):
         res = x
-        x = x + self.speaker_in(spk)
+        x = x + self.speaker_in(g)
         x = self.conv(x)
         x_0, x_1 = torch.chunk(x, 2, dim=1)
         x = torch.tanh(x_0) * torch.sigmoid(x_1)
@@ -65,12 +65,12 @@ class WN(nn.Module):
 
     # x: [BatchSize, hidden_channels, Length]
     # x_mask: [BatchSize, 1, Length]
-    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # g: [BatchSize, speaker_embedding_dim, 1]
     # Output: [BatchSize, hidden_channels, Length]
-    def forward(self, x, x_mask, spk):
+    def forward(self, x, x_mask, g):
         output = None
         for layer in self.layers:
-            x, skip = layer(x, x_mask, spk)
+            x, skip = layer(x, x_mask, g)
             if output is None:
                 output = skip
             else:

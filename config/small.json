@@ -98,7 +98,9 @@
 	},
 
 	"preprocess": {
-		"max_length": 480000
+		"max_waveform_length": 480000,
+		"pitch_estimation": "fcpe",
+		"max_phonemes": 50,
 	},
 
 	"train": {

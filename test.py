@@ -5,6 +5,7 @@ from module.model_components.flow import Flow
 from module.model_components.text_encoder import TextEncoder
 from module.model_components.audio_encoder import AudioEncoder
 from module.model_components.duration_predictors import DurationPredictor, StochasticDurationPredictor
+from module.g2p.processor import G2PProcessor
 
 
 # test posterior encoder 
@@ -55,3 +56,7 @@ x = torch.randn(2, 192, 10)
 x_mask = torch.ones(2, 1, 10)
 g = torch.randn(2, 10)
 
+# g2p
+g2p_processor = G2PProcessor()
+phoneid, length, lang = g2p_processor.encode(["hello", "world"], ["en", "en"], 20)
+print(phoneid.shape, length.shape, lang.shape)

@@ -21,7 +21,7 @@ class PosteriorEncoder(nn.Module):
 
     # x: [BatchSize, fft_bin, Length]
     # x_length: [BatchSize]
-    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # g: [BatchSize, speaker_embedding_dim, 1]
     #
     # Outputs:
     #   z: [BatchSize, content_channels, Length]
@@ -30,7 +30,7 @@ class PosteriorEncoder(nn.Module):
     #   z_mask: [BatchSize, 1, Length]
     #
     # where fft_bin = input_channels = n_fft // 2 + 1
-    def forward(self, x, x_length, spk):
+    def forward(self, x, x_length, g):
         # generate mask
         max_length = x.shape[2]
         progression = torch.arange(max_length, dtype=x_length.dtype, device=x_length.device)
@@ -39,7 +39,7 @@ class PosteriorEncoder(nn.Module):
         
         # pass network
         x = self.pre(x) * z_mask
-        x = self.wn(x, z_mask, spk) 
+        x = self.wn(x, z_mask, g) 
         x = self.post(x) * z_mask
         mean, logvar = torch.chunk(x, 2, dim=1)
         z = mean + torch.randn_like(mean) * torch.exp(logvar) * z_mask
