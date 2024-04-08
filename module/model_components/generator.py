@@ -137,6 +137,11 @@ class Generator(nn.Module):
             MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1)
             MAS_path = maximum_path(neg_cent, MAS_node_mask.squeeze(1)).unsqueeze(1).detach()
 
+        # calculate KL divergence loss
+        m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
+        logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
+        loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
+
         # calculate duration each phonemes
         duration = MAS_path.sum(2)
         loss_sdp = self.stochastic_duration_predictor(
@@ -148,9 +153,6 @@ class Generator(nn.Module):
         logw_ = torch.log(duration + 1e-6) * text_mask
         logw = self.duration_predictor(text_encoded.detach(), text_mask, spk)
         loss_dp = (torch.sum((logw - logw_) ** 2, dim=(1, 2)) / torch.sum(text_mask)).mean()
-
-        m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
-        logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
 
         # slice randomly
         crop_range = decide_crop_range(z.shape[2], self.slice_frames)
@@ -164,8 +166,6 @@ class Generator(nn.Module):
         f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
         loss_pe = pitch_estimation_loss(f0_logit, f0_label) * 45
 
-        # calculate KL divergence loss
-        loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
 
         # calculate audio encoder loss
         z_ae, _ = self.audio_encoder(spec, spec_len)
