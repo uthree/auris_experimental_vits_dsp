@@ -1,8 +1,0 @@
-from module.g2p.processor import G2PProcessor
-from module.language_model.processor import LanguageModelProcessor
-
-
-class Preprocessor:
-    def __init__(self, config):
-        self.g2p = G2PProcessor()
-        self.lm = LanguageModelProcessor
