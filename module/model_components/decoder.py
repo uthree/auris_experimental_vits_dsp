@@ -159,7 +159,6 @@ class PitchEstimator(nn.Module):
         probs = F.softmax(probs, dim=1)
         freqs = self.freq2id(indices)
         f0 = (probs * freqs).sum(dim=1, keepdim=True)
-        print(f0)
         f0[f0 <= self.min_frequency] = 0
         return f0
 
