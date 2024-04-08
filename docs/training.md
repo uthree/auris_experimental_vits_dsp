@@ -8,7 +8,9 @@
 
 ### JVSコーパス
 [JVSコーパス](https://sites.google.com/site/shinnosuketakamichi/research-topics/jvs_corpus)の前処理は以下のコマンドで行う。
-
+```sh
+python3 preprocess.py jvs jvs_ver1/ -c config/base.json 
+```
 
 ### MoeSpeech
 準備中

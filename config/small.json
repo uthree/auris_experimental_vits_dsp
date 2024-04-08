@@ -116,11 +116,13 @@
 	},
 
 	"train": {
+		"cache": "dataset_cache",
 		"reconstruction": {
 			"steps": 100000,
 			"batch_size": 8,
 			"gradient_accumulation": 1
 		},
+
 		"tts": {
 			"steps": 100000,
 			"batch_size": 4,
