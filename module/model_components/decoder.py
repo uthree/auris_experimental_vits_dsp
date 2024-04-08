@@ -556,9 +556,8 @@ class Decoder(nn.Module):
     # content: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
     # Output: [BatchSize, 1, Length * frame_size]
-    def infer(self, content, f0=None):
-        if f0 is None:
-            f0 = self.pitch_estimator.infer(content)
+    def infer(self, content):
+        f0 = self.pitch_estimator.infer(content)
         amps, kernels = self.source_net(content, f0)
 
         # oscillate source signals

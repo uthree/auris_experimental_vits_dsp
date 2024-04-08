@@ -156,6 +156,7 @@ for epoch in range(num_epoch):
                 "StochasticDurationPredictor": loss_sdp.item(),
                 "DurationPredictor": loss_dp.item(),
                 "Mel Sopectrogram": loss_mel.item(),
+                "DSP Loss": loss_dsp.item(),
                 "KL Divergence": loss_kl.item(),
                 "Feature Matching": loss_feat.item(),
                 "Generator Adversarial": loss_adv.item(),

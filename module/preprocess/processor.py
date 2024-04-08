@@ -9,6 +9,7 @@ from module.language_model.processor import LanguageModelProcessor
 from module.utils.f0_estimation import estimate_f0
 
 
+# for dataset preprocess
 class Preprocessor:
     def __init__(self, config):
         self.g2p = G2PProcessor()

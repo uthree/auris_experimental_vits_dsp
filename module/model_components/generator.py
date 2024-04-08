@@ -3,6 +3,7 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .decoder import Decoder
 from .posterior_encoder import PosteriorEncoder
@@ -123,7 +124,7 @@ class Generator(nn.Module):
                 g=spk
                 ).mean()
         logw_ = torch.log(duration + 1e-6) * text_mask
-        logw = self.duration_predictor(text_encoded.detach(), text_mask)
+        logw = self.duration_predictor(text_encoded.detach(), text_mask, spk)
         loss_dp = (torch.sum((logw - logw_) ** 2, dim=(1, 2)) / torch.sum(text_mask)).mean()
 
         m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
@@ -141,8 +142,40 @@ class Generator(nn.Module):
         return loss_sdp, loss_dp, f0_logits, dsp_out, fake, MAS_path, text_mask, spec_mask, area, (z, z_p, m_p, logs_p, m_q, logs_q)
 
     @torch.no_grad()
-    def text_to_speech(self):
-        pass # TODO: write this
+    def text_to_speech(
+            self,
+            phoneme,
+            phoneme_len,
+            lm_feat,
+            lm_feat_len,
+            spk,
+            lang,
+            noise_scale=0.6,
+            max_frames=2000,
+            use_sdp=True
+            ):
+        text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, lang)
+        spk = self.speaker_embedding(spk)
+
+        if use_sdp:
+            log_duration = self.stochastic_duration_predictor(text_encoded, text_mask, g=spk, reverse=True)
+            duration = torch.exp(log_duration)
+        else:
+            duration = self.duration_predictor(text_encoded, text_mask, spk)
+        duration = torch.ceil(duration)
+        spec_len = torch.clamp_min(torch.sum(duration, dim=(1, 2)), 1).long()
+        spec_len = torch.clamp_max(spec_len, max_frames)
+        spec_mask = sequence_mask(spec_len).unsqueeze(1).to(text_mask.dtype)
+        MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1)
+        MAS_path = generate_path(duration, MAS_node_mask).float()
+
+        m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
+        logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
+
+        z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
+        z = self.flow(z_p, spec_mask, spk, reverse=True)
+        fake = self.decoder.infer(z)
+        return fake
 
     @torch.no_grad()
     def singing_voice_conversion(self):

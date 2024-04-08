@@ -225,7 +225,8 @@ class DurationPredictor(nn.Module):
                  kernel_size=7,
                  num_layers=4):
         super().__init__()
-        self.input_layer = nn.Conv1d(content_channels, internal_channels, 1)
+        self.phoneme_input = nn.Conv1d(content_channels, internal_channels, 1)
+        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
         self.input_norm = LayerNorm(internal_channels)
         self.mid_layers = nn.ModuleList()
         for _ in range(num_layers):
@@ -233,8 +234,8 @@ class DurationPredictor(nn.Module):
         self.output_norm = LayerNorm(internal_channels)
         self.output_layer = nn.Conv1d(internal_channels, 1, 1)
 
-    def forward(self, x, x_mask):
-        x = self.input_layer(x) * x_mask
+    def forward(self, x, x_mask, g):
+        x = (self.phoneme_input(x) + self.speaker_input(g)) * x_mask
         x = self.input_norm(x) * x_mask
         for layer in self.mid_layers:
             x = layer(x) * x_mask
