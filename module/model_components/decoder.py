@@ -191,8 +191,8 @@ class SourceNet(nn.Module):
         x = self.input_norm(x)
         x = self.mid_layers(x)
         x = self.output_norm(x)
-        amps = F.relu(self.to_amps(x))
-        kernels = F.relu(self.to_kernels(x))
+        amps = F.elu(self.to_amps(x)) + 1
+        kernels = F.elu(self.to_kernels(x)) + 1
         return amps, kernels
 
 
