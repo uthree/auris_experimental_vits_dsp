@@ -15,7 +15,6 @@ from .duration_predictors import DurationPredictor, StochasticDurationPredictor
 
 from .monotonic_align import maximum_path
 from module.train.crop import crop_features, decide_crop_range
-from module.train.loss import kl_divergence_loss, pitch_estimation_loss
 
 
 def sequence_mask(length, max_length=None):
@@ -45,6 +44,28 @@ def generate_path(duration, mask):
     path = path - F.pad(path, padding)[:, :-1]
     path = path.unsqueeze(1).transpose(2,3) * mask
     return path
+
+
+def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
+    z_p = z_p.float()
+    logs_q = logs_q.float()
+    m_p = m_p.float()
+    logs_p = logs_p.float()
+    z_mask = z_mask.float()
+
+    kl = logs_p - logs_q - 0.5
+    kl += 0.5 * ((z_p - m_p)**2) * torch.exp(-2. * logs_p)
+    kl = torch.sum(kl * z_mask)
+    l = kl / torch.sum(z_mask)
+    return l
+
+
+def pitch_estimation_loss(logits, label):
+    num_classes = logits.shape[1]
+    device = logits.device
+    weight = torch.ones(num_classes, device=device)
+    weight[0] = 1e-3
+    return F.cross_entropy(logits, label, weight)
 
 
 class Generator(nn.Module):
@@ -123,7 +144,7 @@ class Generator(nn.Module):
                 text_mask, 
                 w=duration,
                 g=spk
-                ).mean()
+                ).sum()
         logw_ = torch.log(duration + 1e-6) * text_mask
         logw = self.duration_predictor(text_encoded.detach(), text_mask, spk)
         loss_dp = (torch.sum((logw - logw_) ** 2, dim=(1, 2)) / torch.sum(text_mask)).mean()
@@ -137,11 +158,11 @@ class Generator(nn.Module):
         # decoder losses
         z_sliced = crop_features(z, crop_range)
         f0_sliced = crop_features(f0, crop_range)
-        
+
         # pitch estimation loss
         f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
         f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
-        loss_pe = pitch_estimation_loss(f0_logit, f0_label)
+        loss_pe = pitch_estimation_loss(f0_logit, f0_label) * 45
 
         # calculate KL divergence loss
         loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)

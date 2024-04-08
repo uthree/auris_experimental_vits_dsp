@@ -28,9 +28,11 @@ config = json.load(open(args.config))
 batch_size = config['train']['batch_size']
 num_epoch = config['train']['epoch']
 lr = config['train']['lr']
-interval = config['train']['interval']
+save_interval = config['train']['save_interval']
+tensorboard_interval = config['train']['tensorboard_interval']
 frame_size = config['generator']['decoder']['frame_size']
 n_fft = config['generator']['decoder']['n_fft']
+sample_rate = config['generator']['decoder']['sample_rate']
 use_amp = config['train']['amp']
 
 device = torch.device(config['train']['device'])
@@ -106,7 +108,7 @@ for epoch in range(num_epoch):
             dsp_out, fake, lossG, crop_range, loss_dict = G(spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk_id, lang)
 
             real = crop_waveform(wf, crop_range, frame_size)
-            loss_dsp = MelLoss(dsp_out, real)
+            loss_dsp = MelLoss(dsp_out, real) * 45.0
             loss_mel = MelLoss(fake, real) * 45.0
 
             logits_real, fmap_real = D(real)
@@ -145,15 +147,20 @@ for epoch in range(num_epoch):
 
         scaler.update()
 
-        # write summary
-        for k, v in zip(loss_dict.keys(), loss_dict.values()):
-            writer.add_scalar(k, v, step_count)
+        if batch % tensorboard_interval == 0:
+            # write summary
+            for k, v in zip(loss_dict.keys(), loss_dict.values()):
+                writer.add_scalar(f"scalar/{k}", v, step_count)
+            dsp_preview = torch.clamp(dsp_out[0].unsqueeze(0), -1.0, 1.0)
+            fake_preview = torch.clamp(fake[0].unsqueeze(0), -1.0, 1.0)
+            writer.add_audio("audio/DSP Output", dsp_preview, step_count, sample_rate)
+            writer.add_audio("audio/GAN Output", fake_preview, step_count, sample_rate)
 
         tqdm.write(f"G: {lossG.item():.4f}, D: {lossD.item():.4f}")
         bar.set_description(f"Epoch: {epoch}, Step: {step_count}")
         bar.update(N)
         step_count += 1
-        if batch % interval == 0:
+        if batch % save_interval == 0:
             save_models(model)
 
 print("Training Complete!")
