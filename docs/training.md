@@ -19,7 +19,13 @@ python3 preprocess.py jvs jvs_ver1/ -c config/base.json
 データセットを自作する場合(準備中)
 
 ## 学習を実行
-準備中
+```sh
+python3 train.py -c config/base.json
+```
 
 ## 学習の状態を確認
-tensorboardを使用する(準備中)
+tensorboardというライブラリを使って学習進捗を可視化することができる。
+```sh
+tensorboard --logdir logs
+```
+を実行し表示されたアドレスにアクセスする。

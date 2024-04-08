@@ -1,5 +1,7 @@
 {
 	"generator": {
+		"slice_frames": 50,
+
 		"decoder": {
 			"sample_rate": 48000,
 			"frame_size": 960,
@@ -120,9 +122,10 @@
 		"cache": "dataset_cache",
 		"device": "cuda",
 		"epoch": 100,
-		"batch_size": 2,
+		"batch_size": 1,
 		"gradient_accumulation": 1,
 		"lr": 1e-4,
-		"interval": 300
+		"interval": 300,
+		"amp": true
 	}
 }

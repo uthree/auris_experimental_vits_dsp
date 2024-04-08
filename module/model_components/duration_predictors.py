@@ -62,7 +62,7 @@ class StochasticDurationPredictor(nn.Module):
     # x: [BatchSize, in_chanels, Length]
     # x_mask [BatchSize, 1, Length]
     # g: [BatchSize, speaker_embedding_dim, 1]
-    # w: Optional, Training only shape=[BatchSize, ?, Length]
+    # w: Optional, Training only shape=[BatchSize, 1, Length]
     # Output: [BatchSize, 1, Length]
     #
     # note: g is speaker embedding
@@ -240,4 +240,5 @@ class DurationPredictor(nn.Module):
             x = layer(x) * x_mask
         x = self.output_norm(x) * x_mask
         x = self.output_layer(x) * x_mask
+        x = F.relu(x)
         return x

@@ -88,7 +88,7 @@ def generator_adversarial_loss(fake_outputs):
     return loss
 
 
-def kl_divergence_loss(z_p, logs_q, logs_p, z_mask):
+def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
     z_p = z_p.float()
     logs_q = logs_q.float()
     m_p = m_p.float()
@@ -102,9 +102,9 @@ def kl_divergence_loss(z_p, logs_q, logs_p, z_mask):
     return l
 
 
-def feature_loss(fmap_real, fmap_fake):
+def feature_matching_loss(fmap_real, fmap_fake):
     loss = 0
-    for r, f in zip(real, fmap_fake):
+    for r, f in zip(fmap_real, fmap_fake):
         f = f.float()
         r = r.float()
         loss += (f - r).abs().mean()

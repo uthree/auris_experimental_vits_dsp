@@ -33,7 +33,7 @@ class Preprocessor:
         wf = wf.sum(dim=0) # [Length_wf]
 
         # get length frame size
-        num_frames = wf.shape[0] // self.frame_size
+        spec_len = torch.LongTensor([wf.shape[0] // self.frame_size])
 
         # padding
         if wf.shape[0] < self.max_waveform_length:
@@ -56,6 +56,7 @@ class Preprocessor:
 
         # to dict
         metadata = {
+                "spec_len": spec_len,
                 "f0": f0,
                 "phonemes": phonemes,
                 "phonemes_len": phonemes_len,

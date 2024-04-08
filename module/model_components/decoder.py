@@ -528,6 +528,33 @@ class Decoder(nn.Module):
 
     # content: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
+    # Outputs:
+    #   f0_logits [BatchSize, num_f0_classes, Length]
+    #   dsp_out: [BatchSize, Length * frame_size]
+    #   output: [BatchSize, Length * frame_size]
+    def forward(self, content, f0):
+        # estimate pitch 
+        f0_logits = self.pitch_estimator(content)
+        
+        # estimate amplitudes each harmonics, noise filter kernels
+        amps, kernels = self.source_net(content, f0)
+
+        # oscillate source signals
+        harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
+        noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
+        source = torch.cat([harmonics, noise], dim=1)
+
+        # dsp output
+        dsp_out = source.sum(dim=1)
+
+        # GAN output
+        output = self.filter_net(content, f0, source)
+        output = output.squeeze(1)
+
+        return f0_logits, dsp_out, output
+
+    # content: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
     # Output: [BatchSize, 1, Length * frame_size]
     def infer(self, content, f0=None):
         if f0 is None:

@@ -54,6 +54,7 @@ class MultiPeriodicDiscriminator(nn.Module):
                                                  num_layers=num_layers))
 
     def forward(self, x):
+        x = x.unsqueeze(1)
         feats = []
         logits = []
         for d in self.sub_discs:
@@ -78,7 +79,6 @@ class DiscriminatorR(nn.Module):
         self.post = norm_f(nn.Conv2d(c, 1, 3, 1, 1))
 
     def forward(self, x):
-        x = x.sum(dim=1)
         w = torch.hann_window(self.n_fft).to(x.device)
         x = torch.stft(x, self.n_fft, self.hop_size, window=w, return_complex=True).abs()
         x = x.unsqueeze(1)
@@ -124,7 +124,7 @@ class Discriminator(nn.Module):
         self.MPD = MultiPeriodicDiscriminator(periods, mpd_channels, mpd_max_channels, mpd_num_layers)
         self.MRD = MultiResolutionDiscriminator(resolutions, mrd_channels, mrd_num_layers, mrd_max_channels)
 
-    # x: [BatchSize, 1, Length(waveform)]
+    # x: [BatchSize, Length(waveform)]
     def forward(self, x):
         mpd_logits, mpd_feats = self.MPD(x)
         mrd_logits, mrd_feats = self.MRD(x)
