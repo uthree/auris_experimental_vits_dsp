@@ -147,7 +147,6 @@ class PitchEstimator(nn.Module):
         fmin = self.min_frequency
         cpo = self.classes_per_octave
         nc = self.num_classes
-
         x = ids.to(torch.float)
         x = fmin * (2 ** (x / cpo))
         x[x <= self.f0_min] = 0
@@ -160,6 +159,7 @@ class PitchEstimator(nn.Module):
         probs = F.softmax(probs, dim=1)
         freqs = self.freq2id(indices)
         f0 = (probs * freqs).sum(dim=1, keepdim=True)
+        print(f0)
         f0[f0 <= self.min_frequency] = 0
         return f0
 
@@ -526,6 +526,8 @@ class Decoder(nn.Module):
                 filter_down_dilations,
                 num_harmonics)
 
+    # training pass
+    #
     # content: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
     # Outputs:
@@ -553,6 +555,8 @@ class Decoder(nn.Module):
 
         return f0_logits, dsp_out, output
 
+    # inference pass
+    #
     # content: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
     # Output: [BatchSize, 1, Length * frame_size]

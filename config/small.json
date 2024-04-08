@@ -92,14 +92,6 @@
 		"mrd_max_channels": 256
 	},
 
-	"duration_discriminator": {
-		"content_channels": 192,
-		"speaker_embedding_dim": 256,
-		"internal_channels": 256,
-		"kernel_size": 7,
-		"num_layers": 4
-	},
-
 	"preprocess": {
 		"sample_rate": 48000,
 		"max_waveform_length": 480000,

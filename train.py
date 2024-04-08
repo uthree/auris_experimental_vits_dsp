@@ -12,9 +12,9 @@ from safetensors.torch import save_file
 from tqdm import tqdm
 
 from module.model import VITS
-from module.train.slice import slice_wave, slice_z
+from module.train.crop import crop_waveform
 from module.train.dataset import VITSDataset
-from module.train.loss import LogMelSpectrogramLoss, kl_divergence_loss, generator_adversarial_loss, discriminator_adversarial_loss, pitch_estimation_loss, feature_matching_loss
+from module.train.loss import LogMelSpectrogramLoss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
 from module.utils.spectrogram import spectrogram
 
 from torch.utils.tensorboard import SummaryWriter
@@ -74,7 +74,6 @@ step_count = 0
 
 G = model.generator
 D = model.discriminator
-Ddur = model.duration_discriminator
 
 writer = SummaryWriter(log_dir="./logs")
 
@@ -104,30 +103,24 @@ for epoch in range(num_epoch):
 
             spec = spectrogram(wf, n_fft, frame_size) # [N, fft_bin, Length]
 
-            loss_sdp, loss_dp, f0_logits, dsp_out, fake, MAS_path, text_mask, spec_mask, area, (z, z_p, m_p, logs_p, m_q, logs_q) = G(
-                    spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk_id, lang)
+            dsp_out, fake, lossG, crop_range, loss_dict = G(spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk_id, lang)
 
-            # slice real waveform area of same to "fake"
-            real = slice_wave(wf, area, frame_size)
-
-            # calculate Mel. loss / DSP loss
-            loss_mel = MelLoss(fake, real) * 45
+            real = crop_waveform(wf, crop_range, frame_size)
             loss_dsp = MelLoss(dsp_out, real)
+            loss_mel = MelLoss(fake, real) * 45.0
 
-            # calculate feature matching loss / adversarial loss
             logits_real, fmap_real = D(real)
             logits_fake, fmap_fake = D(fake)
 
             loss_adv = generator_adversarial_loss(logits_fake)
             loss_feat = feature_matching_loss(fmap_real, fmap_fake)
-            loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
 
-            # calculate pitch estimation loss
-            f0_sliced = slice_z(f0, area)
-            f0_label = G.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
-            loss_pe = pitch_estimation_loss(f0_logits, f0_label)
+            lossG += loss_dsp + loss_mel + loss_adv + loss_feat
 
-            lossG = loss_sdp + loss_dp + loss_mel + loss_kl + loss_feat + loss_adv + loss_pe
+            loss_dict["DSP"] = loss_dsp.item()
+            loss_dict["Mel"] = loss_mel.item()
+            loss_dict["Feature Matching"] = loss_feat.item()
+            loss_dict["Generator Adversarial"] = loss_adv.item()
 
         # backward
         scaler.scale(lossG).backward()
@@ -143,6 +136,7 @@ for epoch in range(num_epoch):
             logits_real, _ = D(real)
             logits_fake, _ = D(fake)
             lossD = discriminator_adversarial_loss(logits_real, logits_fake)
+            loss_dict["Discriminator Adversarial"] = lossD.item()
 
         # backward
         scaler.scale(lossD).backward()
@@ -152,18 +146,7 @@ for epoch in range(num_epoch):
         scaler.update()
 
         # write summary
-        summary = {
-                "StochasticDurationPredictor": loss_sdp.item(),
-                "DurationPredictor": loss_dp.item(),
-                "Mel Sopectrogram": loss_mel.item(),
-                "DSP Loss": loss_dsp.item(),
-                "KL Divergence": loss_kl.item(),
-                "Feature Matching": loss_feat.item(),
-                "Generator Adversarial": loss_adv.item(),
-                "Pitch Estimation": loss_pe.item(),
-                "Discriminator": lossD.item()
-                }
-        for k, v in zip(summary.keys(), summary.values()):
+        for k, v in zip(loss_dict.keys(), loss_dict.values()):
             writer.add_scalar(k, v, step_count)
 
         tqdm.write(f"G: {lossG.item():.4f}, D: {lossD.item():.4f}")

@@ -14,7 +14,8 @@ from .speaker_embedding import SpeakerEmbedding
 from .duration_predictors import DurationPredictor, StochasticDurationPredictor
 
 from .monotonic_align import maximum_path
-from module.train.slice import slice_z, decide_slice_area
+from module.train.crop import crop_features, decide_crop_range
+from module.train.loss import kl_divergence_loss, pitch_estimation_loss
 
 
 def sequence_mask(length, max_length=None):
@@ -60,7 +61,8 @@ class Generator(nn.Module):
         self.stochastic_duration_predictor = StochasticDurationPredictor(**config['stochastic_duration_predictor'])
         self.slice_frames = config['slice_frames']
     
-    # calculate loss
+    # training pass
+    #
     # spec: [BatchSize, fft_bin, Length]
     # spec_len: [BatchSize]
     # phone: [BatchSize, NumPhonemes]
@@ -72,12 +74,11 @@ class Generator(nn.Module):
     # lang: [BatchSize]
     #
     # Outputs:
-    #   loss_sdp: [1]
-    #   loss_dp: [1]
-    #   f0_logits: [BatchSize, num_f0_classes, Length]
     #   dsp_out: [BatchSize, Length * frame_size]
     #   fake: [BatchSize, Length * frame_size]
-    #   slice_area: tuple[int, int]
+    #   lossG: [1]
+    #   crop_range: tuple[int, int]
+    #   loss_dict: Dict[str: float]
     #
     def forward(
             self,
@@ -131,15 +132,36 @@ class Generator(nn.Module):
         logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
 
         # slice randomly
-        area = decide_slice_area(z.shape[2], self.slice_frames)
+        crop_range = decide_crop_range(z.shape[2], self.slice_frames)
 
         # decoder losses
-        z_sliced = slice_z(z, area)
-        f0_sliced = slice_z(f0, area)
+        z_sliced = crop_features(z, crop_range)
+        f0_sliced = crop_features(f0, crop_range)
+        
+        # pitch estimation loss
+        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
+        f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
+        loss_pe = pitch_estimation_loss(f0_logit, f0_label)
 
-        f0_logits, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
+        # calculate KL divergence loss
+        loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
 
-        return loss_sdp, loss_dp, f0_logits, dsp_out, fake, MAS_path, text_mask, spec_mask, area, (z, z_p, m_p, logs_p, m_q, logs_q)
+        # calculate audio encoder loss
+        z_ae, _ = self.audio_encoder(spec, spec_len)
+        loss_ae = (z_ae - z_p.detach()).abs().mean()
+
+        loss_dict = {
+                "StochasticDurationPredictor": loss_sdp.item(),
+                "DurationPredictor": loss_dp.item(),
+                "PitchEstimator": loss_pe.item(),
+                "KL Divergence": loss_kl.item(),
+                "Audio Encoder": loss_ae.item()
+                }
+
+        lossG = loss_sdp + loss_dp + loss_pe + loss_kl + loss_ae
+
+        return dsp_out, fake, lossG, crop_range, loss_dict
+
 
     @torch.no_grad()
     def text_to_speech(
