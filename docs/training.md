@@ -19,10 +19,7 @@ python3 preprocess.py jvs jvs_ver1/ -c config/base.json
 データセットを自作する場合(準備中)
 
 ## 学習を実行
-
-### 再構築タスク
-
-### TTSタスク
+準備中
 
 ## 学習の状態を確認
 tensorboardを使用する(準備中)

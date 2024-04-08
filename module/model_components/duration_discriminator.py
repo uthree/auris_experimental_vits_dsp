@@ -11,7 +11,7 @@ class DurationDiscriminator(nn.Module):
             self,
             content_channels=192,
             speaker_embedding_dim=256,
-            internal_channels: 7,
+            internal_channels=7,
             kernel_size=7,
             num_layers=4,
             ):

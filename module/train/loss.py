@@ -41,9 +41,9 @@ class MultiScaleSTFTLoss(nn.Module):
 class LogMelSpectrogramLoss(nn.Module):
     def __init__(
             self,
-            sample_rate=24000,
-            n_fft=1024,
-            hop_length=256,
+            sample_rate=48000,
+            n_fft=2048,
+            hop_length=512,
             n_mels=80
             ):
         super().__init__()
@@ -68,4 +68,53 @@ class LogMelSpectrogramLoss(nn.Module):
         return (x - y).abs().mean()
 
 
+# 1 = fake, 0 = real
+def discriminator_adversarial_loss(real_outputs, fake_outputs):
+    loss = 0
+    for dr, df in zip(real_outputs, fake_outputs):
+        dr = dr.float()
+        df = df.float()
+        real_loss = (dr ** 2).mean()
+        fake_loss = ((df - 1) ** 2).mean()
+        loss += real_loss + fake_loss
+    return loss
+
+
+def generator_adversarial_loss(fake_outputs):
+    loss = 0
+    for dg in fake_outputs:
+        dg = dg.float()
+        loss += (dg ** 2).mean()
+    return loss
+
+
+def kl_divergence_loss(z_p, logs_q, logs_p, z_mask):
+    z_p = z_p.float()
+    logs_q = logs_q.float()
+    m_p = m_p.float()
+    logs_p = logs_p.float()
+    z_mask = z_mask.float()
+
+    kl = logs_p - logs_q - 0.5
+    kl += 0.5 * ((z_p - m_p)**2) * torch.exp(-2. * logs_p)
+    kl = torch.sum(kl * z_mask)
+    l = kl / torch.sum(z_mask)
+    return l
+
+
+def feature_loss(fmap_real, fmap_fake):
+    loss = 0
+    for r, f in zip(real, fmap_fake):
+        f = f.float()
+        r = r.float()
+        loss += (f - r).abs().mean()
+    return loss * 2
+
+
+def pitch_estimation_loss(logits, label):
+    num_classes = logits.shape[1]
+    device = logits.device
+    weight = torch.ones(num_classes, device=device)
+    weight[0] = 1e-3
+    return F.cross_entropy(logits, label, weight)
 

@@ -172,3 +172,4 @@ module/model_components/monotonic_align/build/*
 dataset_cache/*
 models/*
 checkpoints/*
+logs/*

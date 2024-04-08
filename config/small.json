@@ -47,10 +47,11 @@
 			"num_phonemes": 512,
 			"num_languages": 256,
 			"lm_dim": 768,
-			"d_model": 256,
+			"internal_channels": 256,
 			"content_channels": 192,
-			"nhead": 4,
-			"num_layers": 4
+			"n_heads": 4,
+			"num_layers": 4,
+			"window_size": 4
 		},
 
 		"stochastic_duration_predictor": {
@@ -117,16 +118,11 @@
 
 	"train": {
 		"cache": "dataset_cache",
-		"reconstruction": {
-			"steps": 100000,
-			"batch_size": 8,
-			"gradient_accumulation": 1
-		},
-
-		"tts": {
-			"steps": 100000,
-			"batch_size": 4,
-			"gradient_accumulation": 2
-		}
+		"device": "cuda",
+		"epoch": 100,
+		"batch_size": 2,
+		"gradient_accumulation": 1,
+		"lr": 1e-4,
+		"interval": 300
 	}
 }
