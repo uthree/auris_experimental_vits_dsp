@@ -121,10 +121,10 @@ class Generator(nn.Module):
                 text_mask, 
                 w=duration,
                 g=spk
-                )
+                ).mean()
         logw_ = torch.log(duration + 1e-6) * text_mask
         logw = self.duration_predictor(text_encoded.detach(), text_mask)
-        loss_dp = torch.sum((logw - logw_) ** 2, dim=(1, 2)) / torch.sum(text_mask)
+        loss_dp = (torch.sum((logw - logw_) ** 2, dim=(1, 2)) / torch.sum(text_mask)).mean()
 
         m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
         logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
@@ -139,3 +139,11 @@ class Generator(nn.Module):
         f0_logits, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
 
         return loss_sdp, loss_dp, f0_logits, dsp_out, fake, MAS_path, text_mask, spec_mask, area, (z, z_p, m_p, logs_p, m_q, logs_q)
+
+    @torch.no_grad()
+    def text_to_speech(self):
+        pass # TODO: write this
+
+    @torch.no_grad()
+    def singing_voice_conversion(self):
+        pass # TODO: write this

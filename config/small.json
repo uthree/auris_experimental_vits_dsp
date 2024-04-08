@@ -122,8 +122,7 @@
 		"cache": "dataset_cache",
 		"device": "cuda",
 		"epoch": 100,
-		"batch_size": 1,
-		"gradient_accumulation": 1,
+		"batch_size": 4,
 		"lr": 1e-4,
 		"interval": 300,
 		"amp": true
