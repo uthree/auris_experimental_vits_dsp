@@ -1,7 +1,5 @@
 {
 	"generator": {
-		"slice_frames": 50,
-
 		"decoder": {
 			"sample_rate": 48000,
 			"frame_size": 960,
@@ -116,6 +114,7 @@
 	},
 
 	"train": {
+		"crop_frames": 50,
 		"sample_rate": 48000,
 		"frame_size": 960,
 		"n_fft": 3840,

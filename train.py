@@ -17,6 +17,7 @@ from module.vits import Generator, Discriminator
 from module.train.crop import crop_waveform
 from module.train.dataset import VITSDataset
 from module.train.loss import LogMelSpectrogramLoss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
+from module.train.crop import crop_waveform, decide_crop_range
 from module.utils.spectrogram import spectrogram
 from module.utils.config import load_json_file
 
@@ -37,6 +38,7 @@ tensorboard_interval = config.train.tensorboard_interval
 frame_size = config.train.frame_size
 n_fft = config.train.n_fft
 sample_rate = config.train.sample_rate
+crop_frames = config.train.crop_frames
 use_amp = config.train.use_amp
 device = torch.device(config.train.device)
 
@@ -114,9 +116,12 @@ for epoch in range(num_epoch):
         with torch.cuda.amp.autocast(enabled=use_amp):
             wf = wf.squeeze(1) #[N, WaveformLength]
 
+            # convert to spectrogram
             spec = spectrogram(wf, n_fft, frame_size) # [N, fft_bin, Length]
 
-            dsp_out, fake, lossG, crop_range, loss_dict = G(spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk_id, lang)
+            # decide crop range
+            crop_range = decide_crop_range(spec.shape[2], crop_frames)
+            dsp_out, fake, lossG, loss_dict = G(spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk_id, lang, crop_range)
 
             real = crop_waveform(wf, crop_range, frame_size)
             loss_dsp = MelLoss(dsp_out, real) * 45.0

@@ -103,8 +103,7 @@ class Generator(nn.Module):
         self.speaker_embedding = SpeakerEmbedding(**config.speaker_embedding)
         self.duration_predictor = DurationPredictor(**config.duration_predictor)
         self.stochastic_duration_predictor = StochasticDurationPredictor(**config.stochastic_duration_predictor)
-        self.slice_frames = config.slice_frames
-    
+
     # training pass
     #
     # spec: [BatchSize, fft_bin, Length]
@@ -135,6 +134,7 @@ class Generator(nn.Module):
             f0,
             spk,
             lang,
+            crop_range
             ):
         # encode text
         text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, lang)
@@ -154,6 +154,10 @@ class Generator(nn.Module):
         logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
         loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
 
+        # calculate audio encoder loss
+        z_ae, m_ae, logs_ae, _ = self.audio_encoder(spec, spec_len)
+        loss_ae = (m_ae - m_p.detach()).abs().mean() + (logs_ae - logs_p.detach()).abs().mean()
+
         # calculate duration each phonemes
         duration = MAS_path.sum(2)
         loss_sdp = self.stochastic_duration_predictor(
@@ -166,22 +170,14 @@ class Generator(nn.Module):
         logw = self.duration_predictor(text_encoded, text_mask, spk)
         loss_dp = (torch.sum((logw - logw_) ** 2, dim=(1, 2)) / torch.sum(text_mask)).mean()
 
-        # slice randomly
-        crop_range = decide_crop_range(z.shape[2], self.slice_frames)
-
         # decoder losses
         z_sliced = crop_features(z, crop_range)
         f0_sliced = crop_features(f0, crop_range)
+        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
 
         # pitch estimation loss
-        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
         f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
         loss_pe = pitch_estimation_loss(f0_logit, f0_label) * 45
-
-
-        # calculate audio encoder loss
-        z_ae, m_ae, logs_ae, _ = self.audio_encoder(spec, spec_len)
-        loss_ae = (m_ae - m_p.detach()).abs().mean() + (logs_ae - logs_p.detach()).abs().mean()
 
         loss_dict = {
                 "StochasticDurationPredictor": loss_sdp.item(),
@@ -193,7 +189,7 @@ class Generator(nn.Module):
 
         lossG = loss_sdp + loss_dp + loss_pe + loss_kl + loss_ae
 
-        return dsp_out, fake, lossG, crop_range, loss_dict
+        return dsp_out, fake, lossG, loss_dict
 
 
     @torch.no_grad()
