@@ -5,9 +5,9 @@ from pathlib import Path
 from safetensors import safe_open
 from safetensors.torch import save_file
 
-from module.model import VITS
-from module.g2p.processor import G2PProcessor
-from module.language_model.processor import LanguageModelProcessor
+from module.vits.model import VITS
+from module.g2p import G2PProcessor
+from module.language_model import LanguageModelProcessor
 
 
 class AurisInfer():

@@ -11,7 +11,7 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 from tqdm import tqdm
 
-from module.model import VITS
+from module.vits import VITS
 from module.train.crop import crop_waveform
 from module.train.dataset import VITSDataset
 from module.train.loss import LogMelSpectrogramLoss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss

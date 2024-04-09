@@ -4,8 +4,8 @@ import torch
 import torchaudio
 from torchaudio.functional import resample
 
-from module.g2p.processor import G2PProcessor
-from module.language_model.processor import LanguageModelProcessor
+from module.g2p import G2PProcessor
+from module.language_model import LanguageModelProcessor
 from module.utils.f0_estimation import estimate_f0
 
 

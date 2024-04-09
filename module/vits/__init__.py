@@ -3,8 +3,8 @@ import math
 import torch
 import torch.nn as nn
 
-from .model_components.generator import Generator
-from .model_components.discriminator import Discriminator
+from .generator import Generator
+from .discriminator import Discriminator
 
 class VITS(nn.Module):
     def __init__(self, config):

@@ -89,8 +89,6 @@ def search_path(z_p, m_p, logs_p, text_mask, spec_mask, mas_noise_scale=0.1):
     return MAS_path
 
 
-
-
 class Generator(nn.Module):
     # initialize from config
     def __init__(self, config):
