@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-class VITSDataset(torch.utils.data.Dataset):
+class Dataset(torch.utils.data.Dataset):
     def __init__(self, cache_dir='dataset_cache', speaker_infomation='./models/speakers.json'):
         super().__init__()
         self.root = Path(cache_dir)

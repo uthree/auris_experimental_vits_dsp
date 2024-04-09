@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from module.vits import Generator, Discriminator
 from module.train.crop import crop_waveform
-from module.train.dataset import VITSDataset
+from module.train.dataset import Dataset
 from module.train.loss import LogMelSpectrogramLoss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
 from module.train.crop import crop_waveform, decide_crop_range
 from module.utils.spectrogram import spectrogram

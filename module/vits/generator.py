@@ -104,7 +104,7 @@ class Generator(nn.Module):
         self.duration_predictor = DurationPredictor(**config.duration_predictor)
         self.stochastic_duration_predictor = StochasticDurationPredictor(**config.stochastic_duration_predictor)
 
-    # training pass
+    # vits training pass
     #
     # spec: [BatchSize, fft_bin, Length]
     # spec_len: [BatchSize]

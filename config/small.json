@@ -76,7 +76,7 @@
 			"content_channels": 192,
 			"kernel_size": 7,
 			"num_layers": 4
-		}
+		},
 	},
 
 	"discriminator": {
