@@ -34,9 +34,9 @@ opt_lr = config.train.optimizer.lr
 opt_betas = config.train.optimizer.betas
 save_interval = config.train.save_interval
 tensorboard_interval = config.train.tensorboard_interval
-frame_size = config.generator.decoder.frame_size
-n_fft = config.generator.decoder.n_fft
-sample_rate = config.generator.decoder.sample_rate
+frame_size = config.train.frame_size
+n_fft = config.train.n_fft
+sample_rate = config.train.sample_rate
 use_amp = config.train.use_amp
 device = torch.device(config.train.device)
 
@@ -56,10 +56,10 @@ def load_or_init_models(device=torch.device('cpu')):
     dis = Discriminator(config.discriminator)
     if os.path.exists(generator_path):
         print("loading generator...")
-        model.load_state_dict(load_tensors(generator_path))
+        gen.load_state_dict(load_tensors(generator_path))
     if os.path.exists(discriminator_path):
         print("loading discriminator...")
-        model.load_state_dict(load_tensors(discriminator_path))
+        dis.load_state_dict(load_tensors(discriminator_path))
     gen = gen.to(device)
     dis = dis.to(device)
     return gen, dis
@@ -75,7 +75,7 @@ def save_models(gen, dis):
 # Setup loss
 MelLoss = LogMelSpectrogramLoss(sample_rate).to(device)
 
-ds = VITSDataset(config['train']['cache'])
+ds = VITSDataset(config.train.cache)
 dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True)
 
 # Setup models

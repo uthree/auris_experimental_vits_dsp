@@ -116,6 +116,9 @@
 	},
 
 	"train": {
+		"sample_rate": 48000,
+		"frame_size": 960,
+		"n_fft": 3840,
 		"cache": "dataset_cache",
 		"device": "cuda",
 		"num_epoch": 100,
