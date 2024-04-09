@@ -2,85 +2,96 @@ import os
 import argparse
 import json
 import random
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from pathlib import Path
+
 from safetensors import safe_open
 from safetensors.torch import save_file
 from tqdm import tqdm
 
-from module.vits import VITS
+from module.vits import Generator, Discriminator
 from module.train.crop import crop_waveform
 from module.train.dataset import VITSDataset
 from module.train.loss import LogMelSpectrogramLoss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
 from module.utils.spectrogram import spectrogram
+from module.utils.config import load_json_file
 
 from torch.utils.tensorboard import SummaryWriter
 
 parser = argparse.ArgumentParser(description="train audio reconstruction task")
 parser.add_argument('-c', '--config', default='config/base.json')
 args = parser.parse_args()
-config = json.load(open(args.config))
+config = load_json_file(args.config)
 
 # load config
-batch_size = config['train']['batch_size']
-num_epoch = config['train']['epoch']
-lr = config['train']['lr']
-save_interval = config['train']['save_interval']
-tensorboard_interval = config['train']['tensorboard_interval']
-frame_size = config['generator']['decoder']['frame_size']
-n_fft = config['generator']['decoder']['n_fft']
-sample_rate = config['generator']['decoder']['sample_rate']
-use_amp = config['train']['amp']
+batch_size = config.train.batch_size
+num_epoch = config.train.num_epoch
+opt_lr = config.train.optimizer.lr
+opt_betas = config.train.optimizer.betas
+save_interval = config.train.save_interval
+tensorboard_interval = config.train.tensorboard_interval
+frame_size = config.generator.decoder.frame_size
+n_fft = config.generator.decoder.n_fft
+sample_rate = config.generator.decoder.sample_rate
+use_amp = config.train.use_amp
+device = torch.device(config.train.device)
 
-device = torch.device(config['train']['device'])
+generator_path = Path('models') / 'generator.safetensors'
+discriminator_path = Path('models') / 'discriminator.safetensors'
 
-model_path = Path('models') / 'model.safetensors'
+def load_tensors(model_path):
+    tensors = {}
+    with safe_open(model_path, framework="pt", device="cpu") as f:
+        for key in f.keys():
+            tensors[key] = f.get_tensor(key).to(device)
+    return tensors
+
 
 def load_or_init_models(device=torch.device('cpu')):
-    model = VITS(config)
-    if os.path.exists(model_path):
-        tensors = {}
-        with safe_open(model_path, framework="pt", device="cpu") as f:
-            for key in f.keys():
-                tensors[key] = f.get_tensor(key).to(device)
-        model.load_state_dict(tensors)
-        print(f"loaded model from {str(model_path)}")
-    model = model.to(device)
-    return model
+    gen = Generator(config.generator)
+    dis = Discriminator(config.discriminator)
+    if os.path.exists(generator_path):
+        print("loading generator...")
+        model.load_state_dict(load_tensors(generator_path))
+    if os.path.exists(discriminator_path):
+        print("loading discriminator...")
+        model.load_state_dict(load_tensors(discriminator_path))
+    gen = gen.to(device)
+    dis = dis.to(device)
+    return gen, dis
 
 
-def save_models(model):
+def save_models(gen, dis):
     print("Saving... (do not terminate this processs)")
-    tensors = model.state_dict()
-    save_file(tensors, model_path)
+    save_file(gen.state_dict(), generator_path)
+    save_file(dis.state_dict(), discriminator_path)
     print("Save Complete.")
 
 
+# Setup loss
+MelLoss = LogMelSpectrogramLoss(sample_rate).to(device)
 
 ds = VITSDataset(config['train']['cache'])
 dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True)
 
-model = load_or_init_models(device)
+# Setup models
+G, D = load_or_init_models(device)
 
-OptG = optim.AdamW(model.generator.parameters(), lr)
-OptD = optim.AdamW(model.discriminator.parameters(), lr)
-
+# Setup optimizer, scaler
+OptG = optim.AdamW(G.parameters(), opt_lr, opt_betas)
+OptD = optim.AdamW(D.parameters(), opt_lr, opt_betas)
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
-
-MelLoss = LogMelSpectrogramLoss().to(device)
-
-step_count = 0
-
-G = model.generator
-D = model.discriminator
 
 writer = SummaryWriter(log_dir="./logs")
 
 print("Start training")
 print("run `tensorboard --logdir logs` if you need show tensorboard")
+
+step_count = 0
 for epoch in range(num_epoch):
     tqdm.write(f" Epoch #{epoch}")
     bar = tqdm(total=len(ds))
@@ -161,6 +172,8 @@ for epoch in range(num_epoch):
         bar.update(N)
         step_count += 1
         if batch % save_interval == 0:
-            save_models(model)
+            save_models(G, D)
 
 print("Training Complete!")
+save_models(G, D)
+cleanup()

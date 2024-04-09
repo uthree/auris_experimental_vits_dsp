@@ -44,7 +44,13 @@ class DiscriminatorP(nn.Module):
 
 
 class MultiPeriodicDiscriminator(nn.Module):
-    def __init__(self, periods, channels, max_channels, num_layers):
+    def __init__(
+            self,
+            periods=[1, 2, 3, 5, 7, 11],
+            channels=32,
+            max_channels=256,
+            num_layers=4,
+            ):
         super().__init__()
         self.sub_discs = nn.ModuleList([])
         for p in periods:
@@ -93,7 +99,13 @@ class DiscriminatorR(nn.Module):
 
 
 class MultiResolutionDiscriminator(nn.Module):
-    def __init__(self, resolutions, channels, num_layers, max_channels):
+    def __init__(
+            self,
+            resolutions=[128, 256, 512],
+            channels=32,
+            num_layers=4,
+            max_channels=256,
+            ):
         super().__init__()
         self.sub_discs = nn.ModuleList([])
         for r in resolutions:
@@ -110,19 +122,10 @@ class MultiResolutionDiscriminator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self,
-                 resolutions=[128, 256, 512],
-                 periods=[1, 2, 3, 5, 7, 11, 17, 23, 37],
-                 mpd_num_layers=4,
-                 mrd_num_layers=4,
-                 mpd_channels=32,
-                 mrd_channels=32,
-                 mpd_max_channels=256,
-                 mrd_max_channels=256
-                 ):
+    def __init__(self, config):
         super().__init__()
-        self.MPD = MultiPeriodicDiscriminator(periods, mpd_channels, mpd_max_channels, mpd_num_layers)
-        self.MRD = MultiResolutionDiscriminator(resolutions, mrd_channels, mrd_num_layers, mrd_max_channels)
+        self.MPD = MultiPeriodicDiscriminator(**config.mpd)
+        self.MRD = MultiResolutionDiscriminator(**config.mrd)
 
     # x: [BatchSize, Length(waveform)]
     def forward(self, x):

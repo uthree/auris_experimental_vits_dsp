@@ -95,15 +95,15 @@ class Generator(nn.Module):
     # initialize from config
     def __init__(self, config):
         super().__init__()
-        self.decoder = Decoder(**config['decoder'])
-        self.posterior_encoder = PosteriorEncoder(**config['posterior_encoder'])
-        self.flow = Flow(**config['flow'])
-        self.audio_encoder = AudioEncoder(**config['audio_encoder'])
-        self.text_encoder = TextEncoder(**config['text_encoder'])
-        self.speaker_embedding = SpeakerEmbedding(**config['speaker_embedding'])
-        self.duration_predictor = DurationPredictor(**config['duration_predictor'])
-        self.stochastic_duration_predictor = StochasticDurationPredictor(**config['stochastic_duration_predictor'])
-        self.slice_frames = config['slice_frames']
+        self.decoder = Decoder(**config.decoder)
+        self.posterior_encoder = PosteriorEncoder(**config.posterior_encoder)
+        self.flow = Flow(**config.flow)
+        self.audio_encoder = AudioEncoder(**config.audio_encoder)
+        self.text_encoder = TextEncoder(**config.text_encoder)
+        self.speaker_embedding = SpeakerEmbedding(**config.speaker_embedding)
+        self.duration_predictor = DurationPredictor(**config.duration_predictor)
+        self.stochastic_duration_predictor = StochasticDurationPredictor(**config.stochastic_duration_predictor)
+        self.slice_frames = config.slice_frames
     
     # training pass
     #

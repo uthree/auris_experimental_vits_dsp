@@ -82,14 +82,19 @@
 	},
 
 	"discriminator": {
-		"resolutions": [128, 256, 512],
-		"periods": [1, 2, 3, 5, 7, 11],
-		"mpd_num_layers": 4,
-		"mrd_num_layers": 4,
-		"mpd_channels": 32,
-		"mrd_channels": 32,
-		"mpd_max_channels": 256,
-		"mrd_max_channels": 256
+		"mrd": {
+			"resolutions": [128, 256, 512],
+			"channels": 32,
+			"max_channels": 256,
+			"num_layers": 4
+		},
+
+		"mpd": {
+			"periods": [1, 2, 3, 5, 7],
+			"channels": 32,
+			"max_channels": 256,
+			"num_layers": 4
+		}
 	},
 
 	"preprocess": {
@@ -113,11 +118,15 @@
 	"train": {
 		"cache": "dataset_cache",
 		"device": "cuda",
-		"epoch": 100,
+		"num_epoch": 100,
 		"batch_size": 2,
-		"lr": 1e-4,
+		"optimizer": {
+			"lr": 1e-4,
+			"betas": [0.8, 0.99]
+		},
 		"save_interval": 300,
 		"tensorboard_interval": 20,
-		"amp": false
+		"use_amp": false,
+		"world_size": -1
 	}
 }
