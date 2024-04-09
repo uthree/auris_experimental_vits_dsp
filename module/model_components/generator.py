@@ -68,6 +68,29 @@ def pitch_estimation_loss(logits, label):
     return F.cross_entropy(logits, label, weight)
 
 
+# run Monotonic Alignment Search (MAS).
+# MAS associates phoneme sequences with sounds.
+def search_path(z_p, m_p, logs_p, text_mask, spec_mask, mas_noise_scale=0.1):
+    with torch.no_grad():
+        # calculate nodes using D.P.
+        s_p_sq_r = torch.exp(-2 * logs_p)
+        neg_cent1 = torch.sum(-0.5 * math.log(2 * math.pi) - logs_p, dim=1, keepdim=True)
+        neg_cent2 = torch.matmul(-0.5 * (z_p ** 2).mT, s_p_sq_r)
+        neg_cent3 = torch.matmul(z_p.mT, (m_p * s_p_sq_r))
+        neg_cent4 = torch.sum(-0.5 * (m_p ** 2) * s_p_sq_r, dim=1, keepdim=True)
+        neg_cent = neg_cent1 + neg_cent2 + neg_cent3 + neg_cent4
+        # mask unnecessary nodes, run D.P.
+        MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1)
+        MAS_path = maximum_path(neg_cent, MAS_node_mask.squeeze(1)).unsqueeze(1).detach()
+
+        if mas_noise_scale > 0.0:
+            eps = torch.std(neg_cent) * torch.randn_like(neg_cent) * mas_noise_scale
+            neg_cent += eps
+    return MAS_path
+
+
+
+
 class Generator(nn.Module):
     # initialize from config
     def __init__(self, config):
@@ -123,19 +146,8 @@ class Generator(nn.Module):
         # take z and embedded speaker, get z_p to use in MAS
         z_p = self.flow(z, spec_mask, spk)
 
-        # run Monotonic Alignment Search (MAS).
-        # MAS associates phoneme sequences with sounds.
-        with torch.no_grad():
-            # calculate nodes using D.P.
-            s_p_sq_r = torch.exp(-2 * logs_p)
-            neg_cent1 = torch.sum(-0.5 * math.log(2 * math.pi) - logs_p, dim=1, keepdim=True)
-            neg_cent2 = torch.matmul(-0.5 * (z_p ** 2).mT, s_p_sq_r)
-            neg_cent3 = torch.matmul(z_p.mT, (m_p * s_p_sq_r))
-            neg_cent4 = torch.sum(-0.5 * (m_p ** 2) * s_p_sq_r, dim=1, keepdim=True)
-            neg_cent = neg_cent1 + neg_cent2 + neg_cent3 + neg_cent4
-            # mask unnecessary nodes, run D.P.
-            MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1)
-            MAS_path = maximum_path(neg_cent, MAS_node_mask.squeeze(1)).unsqueeze(1).detach()
+        # search path
+        MAS_path = search_path(z_p, m_p, logs_p, text_mask, spec_mask)
 
         # calculate KL divergence loss
         m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT

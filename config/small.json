@@ -114,7 +114,7 @@
 		"cache": "dataset_cache",
 		"device": "cuda",
 		"epoch": 100,
-		"batch_size": 1,
+		"batch_size": 4,
 		"lr": 1e-4,
 		"save_interval": 300,
 		"tensorboard_interval": 20,
