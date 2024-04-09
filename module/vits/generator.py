@@ -180,8 +180,8 @@ class Generator(nn.Module):
 
 
         # calculate audio encoder loss
-        z_ae, _ = self.audio_encoder(spec, spec_len)
-        loss_ae = (z_ae - z_p.detach()).abs().mean()
+        z_ae, m_ae, logs_ae, _ = self.audio_encoder(spec, spec_len)
+        loss_ae = (m_ae - m_p.detach()).abs().mean() + (logs_ae - logs_p.detach()).abs().mean()
 
         loss_dict = {
                 "StochasticDurationPredictor": loss_sdp.item(),

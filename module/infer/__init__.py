@@ -5,7 +5,7 @@ from pathlib import Path
 from safetensors import safe_open
 from safetensors.torch import save_file
 
-from module.vits.model import VITS
+from module.vits import VITS
 from module.g2p import G2PProcessor
 from module.language_model import LanguageModelProcessor
 

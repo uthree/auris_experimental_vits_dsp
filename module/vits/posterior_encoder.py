@@ -42,5 +42,5 @@ class PosteriorEncoder(nn.Module):
         x = self.wn(x, z_mask, g) 
         x = self.post(x) * z_mask
         mean, logvar = torch.chunk(x, 2, dim=1)
-        z = mean + torch.randn_like(mean) * torch.exp(logvar) * z_mask
+        z = mean + torch.randn_like(mean) + torch.exp(logvar) * z_mask
         return z, mean, logvar, z_mask

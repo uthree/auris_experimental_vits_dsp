@@ -18,26 +18,30 @@ class AudioEncoder(nn.Module):
         self.pre = nn.Conv1d(self.input_channels, internal_channels, 1)
         self.mid_layers = nn.ModuleList(
                 [ConvNeXtLayer(internal_channels, kernel_size) for _ in range(num_layers)])
-        self.post = nn.Conv1d(internal_channels, content_channels, 1)
+        self.post = nn.Conv1d(internal_channels, content_channels * 2, 1)
 
     # x: [BatchSize, fft_bin, Length]
     # x_length: [BatchSize]
     #
     # Outputs:
-    #   x: [BatchSize, content_channels, Length]
-    #   x_mask: [BatchSize, 1, Length]
+    #   z: [BatchSize, content_channels, Length]
+    #   mean: [BatchSize, content_channels, Length]
+    #   logvar: [BatchSize, content_channels, Length]
+    #   z_mask: [BatchSize, 1, Length]
     #
     # where fft_bin = input_channels = n_fft // 2 + 1
     def forward(self, x, x_length):
         # generate mask
         max_length = x.shape[2]
         progression = torch.arange(max_length, dtype=x_length.dtype, device=x_length.device)
-        x_mask = (progression.unsqueeze(0) < x_length.unsqueeze(1))
-        x_mask = x_mask.unsqueeze(1).to(x.dtype)
+        z_mask = (progression.unsqueeze(0) < x_length.unsqueeze(1))
+        z_mask = z_mask.unsqueeze(1).to(x.dtype)
 
         # pass network
-        x = self.pre(x) * x_mask
+        x = self.pre(x) * z_mask
         for layer in self.mid_layers:
-            x = layer(x) * x_mask
-        x = self.post(x) * x_mask
-        return x, x_mask
+            x = layer(x) * z_mask
+        x = self.post(x) * z_mask
+        mean, logvar = torch.chunk(x, 2, dim=1)
+        z = mean + torch.randn_like(mean) * torch.exp(logvar) * z_mask
+        return z, mean, logvar, z_mask
