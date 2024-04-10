@@ -116,8 +116,8 @@
 	"train": {
 		"data_module": {
 			"cache_dir": "dataset_cache",
-			"speaker_list": "speakers.json",
-			"batch_size": 1,
+			"speaker_list": "speaker_list.json",
+			"batch_size": 4,
 			"num_workers": 7
 		},
 
