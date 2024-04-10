@@ -2,13 +2,15 @@ import torch
 import torchaudio
 import json
 from pathlib import Path
+import lightning as L
+from torch.utils.data import DataLoader, random_split
 
 
-class Dataset(torch.utils.data.Dataset):
-    def __init__(self, cache_dir='dataset_cache', speaker_infomation='./models/speakers.json'):
+class VitsDataset(torch.utils.data.Dataset):
+    def __init__(self, cache_dir='dataset_cache', speaker_list='./speaker_list.json'):
         super().__init__()
         self.root = Path(cache_dir)
-        self.speakers = json.load(open(Path(speaker_infomation)))
+        self.speakers = json.load(open(Path(speaker_list)))
         self.audio_file_paths = []
         self.speaker_ids = []
         self.metadata_paths = []
@@ -38,3 +40,29 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.audio_file_paths)
+
+
+class VitsDataModule(L.LightningDataModule):
+    def __init__(
+            self,
+            cache_dir='dataset_cache',
+            speaker_list='.speaker_list.json',
+            batch_size=1,
+            num_workers=1,
+            ):
+        super().__init__()
+        self.cache_dir = cache_dir
+        self.speaker_list = speaker_list
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+
+    def train_dataloader(self):
+        dataset = VitsDataset(
+                self.cache_dir,
+                self.speaker_list)
+        dataloader = DataLoader(
+                dataset,
+                self.batch_size,
+                shuffle=True,
+                num_workers=self.num_workers)
+        return dataloader

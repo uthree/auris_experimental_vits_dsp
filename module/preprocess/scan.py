@@ -3,11 +3,8 @@ from pathlib import Path
 
 
 def scan_cache(config):
-    models_dir = Path("models")
     cache_dir = Path(config['preprocess']['cache'])
-    if not models_dir.exists():
-        models_dir.mkdir()
-    speakers_path = models_dir / "speakers.json"
+    speaker_list_path = Path("speaker_list.json")
 
     names = []
     for subdir in cache_dir.glob("*"):
@@ -15,5 +12,5 @@ def scan_cache(config):
             names.append(subdir.name)
     names = sorted(names)
 
-    with open(speakers_path, 'w') as f:
+    with open(speaker_list_path, 'w') as f:
         json.dump(names, f)

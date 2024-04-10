@@ -12,7 +12,7 @@ from .audio_encoder import AudioEncoder
 from .text_encoder import TextEncoder
 from .speaker_embedding import SpeakerEmbedding
 from .duration_predictors import DurationPredictor, StochasticDurationPredictor
-from module.utils.crop import crop_features
+from .crop import crop_features
 
 from .monotonic_align import maximum_path
 

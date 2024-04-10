@@ -113,41 +113,43 @@
 		}
 	},
 
-	"train_recon": {
-		"device": "cuda",
-		"crop_frames": 50,
-		"sample_rate": 48000,
-		"frame_size": 960,
-		"n_fft": 3840,
-		"cache": "dataset_cache",
-		"num_epoch": 10000,
-		"batch_size": 2,
-		"optimizer": {
-			"lr": 1e-4,
-			"betas": [0.8, 0.99]
+	"train": {
+		"data_module": {
+			"cache_dir": "dataset_cache",
+			"speaker_list": "speakers.json",
+			"batch_size": 1,
+			"num_workers": 7
 		},
-		"save_interval": 300,
-		"tensorboard_interval": 20,
-		"checkpoint_interval": 10000,
-		"use_amp": false
-	},
 
-	"train_vits": {
-		"device": "cuda",
-		"crop_frames": 50,
-		"sample_rate": 48000,
-		"frame_size": 960,
-		"n_fft": 3840,
-		"cache": "dataset_cache",
-		"num_epoch": 10000,
-		"batch_size": 2,
+		"trainer": {
+			"devices": "auto",
+			"max_epochs": 1000000,
+			"precision": null
+		},
+
 		"optimizer": {
 			"lr": 1e-4,
 			"betas": [0.8, 0.99]
 		},
-		"save_interval": 300,
-		"tensorboard_interval": 20,
-		"checkpoint_interval": 10000,
-		"use_amp": false
+
+		"loss": {
+			"mel": {
+				"sample_rate": 48000,
+				"n_fft": 2048,
+				"hop_length": 512,
+				"n_mels": 80
+			}
+		},
+
+		"spectrogram": {
+			"n_fft": 3840,
+			"hop_size": 960
+		},
+
+		"crop": {
+			"max_length": 500,
+			"frames": 50,
+			"frame_size": 960
+		}
 	}
 }

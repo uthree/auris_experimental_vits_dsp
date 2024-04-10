@@ -171,5 +171,6 @@ module/model_components/monotonic_align/core.c
 module/model_components/monotonic_align/build/*
 dataset_cache/*
 models/*
-checkpoints/*
 logs/*
+lightning_logs
+lightning_logs/*

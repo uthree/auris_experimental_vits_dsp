@@ -7,12 +7,12 @@ def decide_crop_range(max_length=500, frames=50):
     return (left, right)
 
 
-def crop_features(z, area):
-    left, right = area[0], area[1]
+def crop_features(z, crop_range):
+    left, right = crop_range[0], crop_range[1]
     return z[:, :, left:right]
 
 
-def crop_waveform(wf, area, frame_size):
-    left, right = area[0], area[1]
+def crop_waveform(wf, crop_range, frame_size):
+    left, right = crop_range[0], crop_range[1]
     return wf[:, left*frame_size:right*frame_size]
 
