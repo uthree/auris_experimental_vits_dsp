@@ -6,9 +6,9 @@
 			"n_fft": 3840,
 			"content_channels": 192,
 			"pe_internal_channels": 256,
-			"pe_num_layers": 4,
+			"pe_num_layers": 2,
 			"source_internal_channels": 256,
-			"source_num_layers": 3,
+			"source_num_layers": 2,
 			"num_harmonics": 14,
 			"filter_channels": [384, 192, 96, 48, 24],
 			"filter_factors": [3, 4, 4, 4, 5],
@@ -76,7 +76,7 @@
 			"content_channels": 192,
 			"kernel_size": 7,
 			"num_layers": 4
-		},
+		}
 	},
 
 	"discriminator": {
@@ -113,13 +113,13 @@
 		}
 	},
 
-	"train": {
+	"train_recon": {
+		"device": "cuda",
 		"crop_frames": 50,
 		"sample_rate": 48000,
 		"frame_size": 960,
 		"n_fft": 3840,
 		"cache": "dataset_cache",
-		"device": "cuda",
 		"num_epoch": 100,
 		"batch_size": 2,
 		"optimizer": {
@@ -128,7 +128,24 @@
 		},
 		"save_interval": 300,
 		"tensorboard_interval": 20,
-		"use_amp": false,
-		"world_size": -1
+		"use_amp": false
+	},
+
+	"train_vits": {
+		"device": "cuda",
+		"crop_frames": 50,
+		"sample_rate": 48000,
+		"frame_size": 960,
+		"n_fft": 3840,
+		"cache": "dataset_cache",
+		"num_epoch": 100,
+		"batch_size": 2,
+		"optimizer": {
+			"lr": 1e-4,
+			"betas": [0.8, 0.99]
+		},
+		"save_interval": 300,
+		"tensorboard_interval": 20,
+		"use_amp": false
 	}
 }

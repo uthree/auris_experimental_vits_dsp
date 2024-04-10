@@ -11,4 +11,6 @@ class EnglishExtractor(PhoneticExtractor):
         return self.g2p_instance(text)
 
     def possible_phonemes(self):
-        return self.g2p_instance.phonemes
+        phonemes = self.g2p_instance.phonemes
+        phonemes.remove('<pad>')
+        return phonemes

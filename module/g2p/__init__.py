@@ -5,10 +5,6 @@ from .japanese import JapaneseExtractor
 from .english import EnglishExtractor
 
 
-def unique(l: List):
-    return list(set(l))
-
-
 class G2PProcessor:
     def __init__(self):
         self.extractors = {}
@@ -16,15 +12,15 @@ class G2PProcessor:
         # If you want to add a language, add processing here
         # ---
         self.extractors['ja'] = JapaneseExtractor()
-        self.extractors['en'] = EnglishExtractor()
+        #self.extractors['en'] = EnglishExtractor()
         # ---
 
-        self.phoneme_vocabs = ['<pad>']
+        phoneme_vocabs = []
         for mod in self.extractors.values():
-            self.phoneme_vocabs += mod.possible_phonemes()
-        self.phoneme_vocabs = unique(self.phoneme_vocabs)
+            phoneme_vocabs += mod.possible_phonemes()
         self.languages = ['unknown']
         self.languages += self.extractors.keys()
+        self.phoneme_vocabs = ['<pad>'] + phoneme_vocabs
 
     def grapheme_to_phoneme(self, text: Union[str, List[str]], language: Union[str, List[str]]):
         if type(text) == list:
@@ -61,6 +57,7 @@ class G2PProcessor:
             ids.append(0) # padding
         if len(ids) > max_length:
             ids = ids[:max_length]
+        length = min(length, max_length)
         return ids, length
 
     def _p2id_multiple(self, phonemes: List[List[str]], max_length: int):
@@ -89,6 +86,28 @@ class G2PProcessor:
         for l in languages:
             result.append(self._l2id_single(l))
         return result
+
+    def id_to_phoneme(self, ids):
+        if type(ids[0]) == list:
+            return self._id2p_multiple(ids)
+        elif type(ids[0]) == int:
+            return self._id2p_single(ids)
+
+    def _id2p_single(self, ids: List[int]) -> List[str]:
+        phonemes = []
+        for i in ids:
+            if i < len(self.phoneme_vocabs):
+                p = self.phoneme_vocabs[i]
+            else:
+                p = '<pad>'
+            phonemes.append(p)
+        return phonemes
+
+    def _id2p_multiple(self, ids: List[List[int]]) -> List[List[str]]:
+        results = []
+        for s in ids:
+            results.append(self._id2p_single(s))
+        return results
 
     def encode(self, sentences: List[str], languages: List[str], max_length: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         phonemes = self.grapheme_to_phoneme(sentences, languages)

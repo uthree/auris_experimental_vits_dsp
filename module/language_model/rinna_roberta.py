@@ -21,7 +21,7 @@ class RinnaRoBERTaExtractor(LinguisticExtractor):
             device = torch.device(device)
         self.device = device
 
-        self.tokenizer = AutoTokenizer.from_pretrained(hf_repo, use_fast=False)
+        self.tokenizer = AutoTokenizer.from_pretrained(hf_repo)
         self.tokenizer.do_lower_case = True
         self.model = AutoModelForMaskedLM.from_pretrained(hf_repo)
         self.model.to(device)

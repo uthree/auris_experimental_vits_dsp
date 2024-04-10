@@ -13,13 +13,13 @@ from module.utils.f0_estimation import estimate_f0
 class Preprocessor:
     def __init__(self, config):
         self.g2p = G2PProcessor()
-        self.lm = LanguageModelProcessor(config['language_model']['type'], config['language_model']['options'])
-        self.max_phonemes = config['preprocess']['max_phonemes']
-        self.lm_max_tokens = config['preprocess']['lm_max_tokens']
-        self.pitch_estimation = config['preprocess']['pitch_estimation']
-        self.max_waveform_length = config['preprocess']['max_waveform_length']
-        self.sample_rate = config['preprocess']['sample_rate']
-        self.frame_size = config['preprocess']['frame_size']
+        self.lm = LanguageModelProcessor(config.language_model.type, config.language_model.options)
+        self.max_phonemes = config.preprocess.max_phonemes
+        self.lm_max_tokens = config.preprocess.lm_max_tokens
+        self.pitch_estimation = config.preprocess.pitch_estimation
+        self.max_waveform_length = config.preprocess.max_waveform_length
+        self.sample_rate = config.preprocess.sample_rate
+        self.frame_size = config.preprocess.frame_size
         self.config = config
 
     def write_cache(self, waveform_path: Path, transcription: str, language: str, speaker_name: str, data_name: str):

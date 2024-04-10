@@ -14,33 +14,41 @@ from safetensors.torch import save_file
 from tqdm import tqdm
 
 from module.vits import Generator, Discriminator
-from module.train.crop import crop_waveform
-from module.train.dataset import Dataset
-from module.train.loss import LogMelSpectrogramLoss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
-from module.train.crop import crop_waveform, decide_crop_range
+from module.utils.dataset import Dataset
+from module.utils.loss import LogMelSpectrogramLoss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
+from module.utils.crop import crop_waveform, crop_features, decide_crop_range
 from module.utils.spectrogram import spectrogram
 from module.utils.config import load_json_file
 
 from torch.utils.tensorboard import SummaryWriter
 
-parser = argparse.ArgumentParser(description="train audio reconstruction task")
+parser = argparse.ArgumentParser(description="train tts task")
 parser.add_argument('-c', '--config', default='config/base.json')
+parser.add_argument('-t', '--task', default='vits', choices=['vits', 'recon'])
 args = parser.parse_args()
 config = load_json_file(args.config)
 
+
 # load config
-batch_size = config.train.batch_size
-num_epoch = config.train.num_epoch
-opt_lr = config.train.optimizer.lr
-opt_betas = config.train.optimizer.betas
-save_interval = config.train.save_interval
-tensorboard_interval = config.train.tensorboard_interval
-frame_size = config.train.frame_size
-n_fft = config.train.n_fft
-sample_rate = config.train.sample_rate
-crop_frames = config.train.crop_frames
-use_amp = config.train.use_amp
-device = torch.device(config.train.device)
+task = args.task
+if task == 'vits':
+    train = config.train_vits
+elif task == 'recon':
+    train = config.train_recon
+
+batch_size = train.batch_size
+num_epoch = train.num_epoch
+opt_lr = train.optimizer.lr
+opt_betas = train.optimizer.betas
+save_interval = train.save_interval
+tensorboard_interval = train.tensorboard_interval
+frame_size = train.frame_size
+n_fft = train.n_fft
+sample_rate = train.sample_rate
+crop_frames = train.crop_frames
+use_amp = train.use_amp
+dataset_cache = train.cache
+device = torch.device(train.device)
 
 generator_path = Path('models') / 'generator.safetensors'
 discriminator_path = Path('models') / 'discriminator.safetensors'
@@ -53,7 +61,7 @@ def load_tensors(model_path):
     return tensors
 
 
-def load_or_init_models(device=torch.device('cpu')):
+def load_or_init_models(generator_path, discriminator_path, device=torch.device('cpu')):
     gen = Generator(config.generator)
     dis = Discriminator(config.discriminator)
     if os.path.exists(generator_path):
@@ -67,7 +75,7 @@ def load_or_init_models(device=torch.device('cpu')):
     return gen, dis
 
 
-def save_models(gen, dis):
+def save_models(gen, dis, generator_path, discriminator_path):
     print("Saving... (do not terminate this processs)")
     save_file(gen.state_dict(), generator_path)
     save_file(dis.state_dict(), discriminator_path)
@@ -77,11 +85,11 @@ def save_models(gen, dis):
 # Setup loss
 MelLoss = LogMelSpectrogramLoss(sample_rate).to(device)
 
-ds = VITSDataset(config.train.cache)
+ds = Dataset(dataset_cache)
 dl = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True)
 
 # Setup models
-G, D = load_or_init_models(device)
+G, D = load_or_init_models(generator_path, discriminator_path, device)
 
 # Setup optimizer, scaler
 OptG = optim.AdamW(G.parameters(), opt_lr, opt_betas)
@@ -121,7 +129,12 @@ for epoch in range(num_epoch):
 
             # decide crop range
             crop_range = decide_crop_range(spec.shape[2], crop_frames)
-            dsp_out, fake, lossG, loss_dict = G(spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk_id, lang, crop_range)
+            if task == 'vits':
+                dsp_out, fake, lossG, loss_dict = G.train_vits(
+                        spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk_id, lang, crop_range)
+            elif task == 'recon':
+                dsp_out, fake, lossG, loss_dict = G.train_recon(
+                        spec, spec_len, f0, spk_id, crop_range)
 
             real = crop_waveform(wf, crop_range, frame_size)
             loss_dsp = MelLoss(dsp_out, real) * 45.0
@@ -177,8 +190,7 @@ for epoch in range(num_epoch):
         bar.update(N)
         step_count += 1
         if batch % save_interval == 0:
-            save_models(G, D)
+            save_models(G, D, generator_path, discriminator_path)
 
 print("Training Complete!")
-save_models(G, D)
-cleanup()
+save_models(G, D, generator_path, discriminator_path)

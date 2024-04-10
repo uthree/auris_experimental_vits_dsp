@@ -12,10 +12,9 @@ from .audio_encoder import AudioEncoder
 from .text_encoder import TextEncoder
 from .speaker_embedding import SpeakerEmbedding
 from .duration_predictors import DurationPredictor, StochasticDurationPredictor
+from module.utils.crop import crop_features
 
 from .monotonic_align import maximum_path
-from module.train.crop import crop_features, decide_crop_range
-
 
 def sequence_mask(length, max_length=None):
     if max_length is None:
@@ -46,7 +45,7 @@ def generate_path(duration, mask):
     return path
 
 
-def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
+def vits_kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
     z_p = z_p.float()
     logs_q = logs_q.float()
     m_p = m_p.float()
@@ -55,6 +54,13 @@ def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
 
     kl = logs_p - logs_q - 0.5
     kl += 0.5 * ((z_p - m_p)**2) * torch.exp(-2. * logs_p)
+    kl = torch.sum(kl * z_mask)
+    l = kl / torch.sum(z_mask)
+    return l
+
+
+def recon_kl_divergence_loss(m_q, logs_q, z_mask):
+    kl = -1 - logs_q + torch.exp(logs_q) + m_q ** 2
     kl = torch.sum(kl * z_mask)
     l = kl / torch.sum(z_mask)
     return l
@@ -104,6 +110,56 @@ class Generator(nn.Module):
         self.duration_predictor = DurationPredictor(**config.duration_predictor)
         self.stochastic_duration_predictor = StochasticDurationPredictor(**config.stochastic_duration_predictor)
 
+
+    # reconstruction training pass
+    # spec: [BatchSize, fft_bin, Length]
+    # spec_len: [BatchSize]
+    # f0: [Batchsize, 1, Length]
+    # spk: [BatchSize]
+    # lang: [BatchSize]
+    # crop_range: Tuple[int, int]
+    #
+    # Outputs:
+    #   dsp_out: [BatchSize, Length * frame_size]
+    #   fake: [BatchSize, Length * frame_size]
+    #   lossG: [1]
+    #   loss_dict: Dict[str: float]
+    #   
+    def train_recon(
+            self,
+            spec,
+            spec_len,
+            f0,
+            spk,
+            crop_range
+            ):
+        # embed speaker
+        spk = self.speaker_embedding(spk)
+
+        # encode linear spectrogram and speaker infomation
+        z, m_q, logs_q, spec_mask = self.posterior_encoder(spec, spec_len, spk)
+
+        # KL Divergence loss
+        loss_kl = recon_kl_divergence_loss(m_q, logs_q, spec_mask)
+
+        # decoder losses
+        z_sliced = crop_features(z, crop_range)
+        f0_sliced = crop_features(f0, crop_range)
+        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
+
+        # pitch estimation loss
+        f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
+        loss_pe = pitch_estimation_loss(f0_logit, f0_label) * 45
+
+        loss_dict = {
+                "PitchEstimator": loss_pe.item(),
+                "KL Divergence": loss_kl.item(),
+                }
+
+        lossG = loss_kl + loss_pe
+        return dsp_out, fake, lossG, loss_dict
+
+
     # vits training pass
     #
     # spec: [BatchSize, fft_bin, Length]
@@ -115,15 +171,15 @@ class Generator(nn.Module):
     # f0: [Batchsize, 1, Length]
     # spk: [BatchSize]
     # lang: [BatchSize]
+    # crop_range: Tuple[int, int]
     #
     # Outputs:
     #   dsp_out: [BatchSize, Length * frame_size]
     #   fake: [BatchSize, Length * frame_size]
     #   lossG: [1]
-    #   crop_range: tuple[int, int]
     #   loss_dict: Dict[str: float]
     #
-    def forward(
+    def train_vits(
             self,
             spec,
             spec_len,
@@ -152,7 +208,7 @@ class Generator(nn.Module):
         # calculate KL divergence loss
         m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
         logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
-        loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
+        loss_kl = vits_kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
 
         # calculate audio encoder loss
         z_ae, m_ae, logs_ae, _ = self.audio_encoder(spec, spec_len)
