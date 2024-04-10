@@ -8,6 +8,7 @@ from torch.nn.utils import weight_norm, remove_weight_norm
 from module.utils.common import get_padding, init_weights
 from .normalization import LayerNorm
 from .convnext import ConvNeXtLayer
+from .feature_retrieval import match_features
 
 
 # Oscillate harmonic signal
@@ -559,8 +560,15 @@ class Decoder(nn.Module):
     # content: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
     # Output: [BatchSize, 1, Length * frame_size]
-    def infer(self, content):
+    # reference: None or [BatchSize, content_channels, NumReferenceVectors]
+    # alpha: float 0 ~ 1.0
+    # k: int
+    def infer(self, content, reference=None, alpha=0, k=4, metrics='cos'):
         f0 = self.pitch_estimator.infer(content)
+        # run feature retrieval if got reference vectors
+        if reference is not None:
+            content = match_features(content, reference, k, alpha, metrics)
+
         amps, kernels = self.source_net(content, f0)
 
         # oscillate source signals

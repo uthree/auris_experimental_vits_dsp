@@ -287,3 +287,7 @@ class Generator(nn.Module):
     @torch.no_grad()
     def singing_voice_conversion(self):
         pass # TODO: write this
+
+    @torch.no_grad()
+    def singing_voice_synthesis(self):
+        pass # TODO: write this
