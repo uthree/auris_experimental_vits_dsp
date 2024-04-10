@@ -149,7 +149,7 @@ class Generator(nn.Module):
 
         # pitch estimation loss
         f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
-        loss_pe = pitch_estimation_loss(f0_logit, f0_label) * 45
+        loss_pe = pitch_estimation_loss(f0_logit, f0_label)
 
         loss_dict = {
                 "PitchEstimator": loss_pe.item(),

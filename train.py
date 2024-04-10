@@ -138,7 +138,7 @@ for epoch in range(num_epoch):
 
             real = crop_waveform(wf, crop_range, frame_size)
             loss_dsp = MelLoss(dsp_out, real)
-            loss_mel = MelLoss(fake, real) * 45.0
+            loss_mel = MelLoss(fake, real)
 
             logits_real, fmap_real = D(real)
             logits_fake, fmap_fake = D(fake)
@@ -146,7 +146,7 @@ for epoch in range(num_epoch):
             loss_adv = generator_adversarial_loss(logits_fake)
             loss_feat = feature_matching_loss(fmap_real, fmap_fake)
 
-            lossG += loss_dsp + loss_mel + loss_adv + loss_feat
+            lossG += loss_dsp + loss_mel * 45.0 + loss_adv + loss_feat
 
             loss_dict["DSP"] = loss_dsp.item()
             loss_dict["Mel"] = loss_mel.item()
