@@ -137,7 +137,7 @@ for epoch in range(num_epoch):
                         spec, spec_len, f0, spk_id, crop_range)
 
             real = crop_waveform(wf, crop_range, frame_size)
-            loss_dsp = MelLoss(dsp_out, real) * 45.0
+            loss_dsp = MelLoss(dsp_out, real)
             loss_mel = MelLoss(fake, real) * 45.0
 
             logits_real, fmap_real = D(real)
