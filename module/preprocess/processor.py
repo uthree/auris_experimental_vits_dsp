@@ -5,7 +5,7 @@ import torchaudio
 from torchaudio.functional import resample
 
 from module.g2p import G2PProcessor
-from module.language_model import LanguageModelProcessor
+from module.language_model import LanguageModel
 from module.utils.f0_estimation import estimate_f0
 
 
@@ -13,7 +13,7 @@ from module.utils.f0_estimation import estimate_f0
 class Preprocessor:
     def __init__(self, config):
         self.g2p = G2PProcessor()
-        self.lm = LanguageModelProcessor(config.language_model.type, config.language_model.options)
+        self.lm = LanguageModel(config.language_model.type, config.language_model.options)
         self.max_phonemes = config.preprocess.max_phonemes
         self.lm_max_tokens = config.preprocess.lm_max_tokens
         self.pitch_estimation = config.preprocess.pitch_estimation

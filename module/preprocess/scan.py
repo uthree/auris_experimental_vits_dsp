@@ -2,15 +2,22 @@ import json
 from pathlib import Path
 
 
+# create metadata
 def scan_cache(config):
-    cache_dir = Path(config['preprocess']['cache'])
-    speaker_list_path = Path("speaker_list.json")
+    cache_dir = Path(config.preprocess.cache)
+    models_dir = Path("models")
+    metadata_path = models_dir / "metadata.json"
+    if not models_dir.exists():
+        models_dir.mkdir()
 
-    names = []
+    speaker_names = []
     for subdir in cache_dir.glob("*"):
         if subdir.is_dir():
-            names.append(subdir.name)
-    names = sorted(names)
+            speaker_names.append(subdir.name)
+    speaker_names = sorted(speaker_names)
+    metadata = {
+            "speakers": speaker_names # speaker list
+            }
 
-    with open(speaker_list_path, 'w') as f:
-        json.dump(names, f)
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f)

@@ -9,7 +9,7 @@ def get_extractor(typename):
         raise "Unknown linguistic extractor type"
 
 
-class LanguageModelProcessor:
+class LanguageModel:
     def __init__(self, extractor_type, options):
         ext_constructor = get_extractor(extractor_type)
         self.extractor = ext_constructor(**options)

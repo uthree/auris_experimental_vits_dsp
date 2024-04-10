@@ -35,11 +35,7 @@ python3 train.py -c config/base.json -t vits
 ```
 
 ## 学習を再開する
-既に学習されたチェックポイント(`.ckpt`のファイル)が存在するなら、それを読み込んで学習を再開することができる。  
-例:
-```sh
-python3 train.py -ckpt some_checkpoint_file.pt
-```
+`models/vits.ckpt`を自動的に読み込んで再開してくれる。
 
 ## 学習の状態を確認
 tensorboardというライブラリを使って学習進捗を可視化することができる。

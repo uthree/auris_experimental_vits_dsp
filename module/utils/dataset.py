@@ -7,10 +7,11 @@ from torch.utils.data import DataLoader, random_split
 
 
 class VitsDataset(torch.utils.data.Dataset):
-    def __init__(self, cache_dir='dataset_cache', speaker_list='speaker_list.json'):
+    def __init__(self, cache_dir='dataset_cache', metadata='models/metadata.json'):
         super().__init__()
         self.root = Path(cache_dir)
-        self.speakers = json.load(open(Path(speaker_list)))
+        metadata = json.load(open(Path(metadata)))
+        self.speakers = metadata['speakers']
         self.audio_file_paths = []
         self.speaker_ids = []
         self.metadata_paths = []
@@ -46,20 +47,20 @@ class VitsDataModule(L.LightningDataModule):
     def __init__(
             self,
             cache_dir='dataset_cache',
-            speaker_list='speaker_list.json',
+            metadata='models/metadata.json',
             batch_size=1,
             num_workers=1,
             ):
         super().__init__()
         self.cache_dir = cache_dir
-        self.speaker_list = speaker_list
+        self.metadata = metadata
         self.batch_size = batch_size
         self.num_workers = num_workers
 
     def train_dataloader(self):
         dataset = VitsDataset(
                 self.cache_dir,
-                self.speaker_list)
+                self.metadata)
         dataloader = DataLoader(
                 dataset,
                 self.batch_size,

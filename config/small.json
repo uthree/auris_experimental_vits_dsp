@@ -114,9 +114,14 @@
 	},
 
 	"train": {
+		"save": {
+			"models_dir": "models",
+			"interval": 200
+		},
+
 		"data_module": {
 			"cache_dir": "dataset_cache",
-			"speaker_list": "speaker_list.json",
+			"metadata": "models/metadata.json",
 			"batch_size": 4,
 			"num_workers": 7
 		},
