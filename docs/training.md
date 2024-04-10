@@ -19,8 +19,16 @@ python3 preprocess.py jvs jvs_ver1/ -c config/base.json
 データセットを自作する場合(準備中)
 
 ## 学習を実行
+学習を効率化するため、先にある程度音声の再構築を学習しておくとよい。
+
+### 音声再構築タスク
 ```sh
-python3 train.py -c config/base.json
+python3 train.py -c config/base.json -t recon
+```
+
+### TTSタスク
+```sh
+python3 train.py -c config/base.json -t vits
 ```
 
 ## 学習の状態を確認
