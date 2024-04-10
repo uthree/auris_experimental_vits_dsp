@@ -71,27 +71,30 @@ class LogMelSpectrogramLoss(nn.Module):
 # 1 = fake, 0 = real
 def discriminator_adversarial_loss(real_outputs, fake_outputs):
     loss = 0
+    n = min(len(real_outputs), len(fake_outputs))
     for dr, df in zip(real_outputs, fake_outputs):
         dr = dr.float()
         df = df.float()
         real_loss = (dr ** 2).mean()
         fake_loss = ((df - 1) ** 2).mean()
         loss += real_loss + fake_loss
-    return loss
+    return loss / n
 
 
 def generator_adversarial_loss(fake_outputs):
     loss = 0
+    n = len(fake_outputs)
     for dg in fake_outputs:
         dg = dg.float()
         loss += (dg ** 2).mean()
-    return loss
+    return loss / n
 
 
 def feature_matching_loss(fmap_real, fmap_fake):
     loss = 0
+    n = min(len(fmap_real), len(fmap_fake))
     for r, f in zip(fmap_real, fmap_fake):
         f = f.float()
         r = r.float()
         loss += (f - r).abs().mean()
-    return loss * 2
+    return loss * (2 / n) 

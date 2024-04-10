@@ -87,7 +87,8 @@ def save_models(gen, dis, generator_path, discriminator_path):
 def save_checkpoint(gen, dis, checkpoint_dir: Path, step: int, task: str):
     subdir_name = f"{task}_{step}"
     subdir = checkpoint_dir / subdir_name
-    subdir.mkdir()
+    if not subdir.exists():
+        subdir.mkdir()
     gen_path = subdir / "generator.safetensors"
     dis_path = subdir / "discriminator.safetensors"
     save_models(gen, dis, gen_path, dis_path)
