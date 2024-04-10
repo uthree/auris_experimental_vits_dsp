@@ -19,7 +19,10 @@ python3 preprocess.py jvs jvs_ver1/ -c config/base.json
 データセットを自作する場合(準備中)
 
 ## 学習を実行
-学習を効率化するため、先にある程度音声の再構築を学習しておくとよい。
+学習を効率化するため、先にある程度音声の再構築を学習しておくとよい。 
+`-t` オプションでタスクの種類を設定できる。  
+ - `-t vits`: VITSに必要なすべてのタスクを学習する。
+ - `-t recon`: 音声の再構築タスクのみを学習する。 
 
 ### 音声再構築タスク
 ```sh
@@ -31,9 +34,17 @@ python3 train.py -c config/base.json -t recon
 python3 train.py -c config/base.json -t vits
 ```
 
+## 学習を再開する
+既に学習されたチェックポイント(`.ckpt`のファイル)が存在するなら、それを読み込んで学習を再開することができる。  
+例:
+```sh
+python3 train.py -ckpt some_checkpoint_file.pt
+```
+
 ## 学習の状態を確認
 tensorboardというライブラリを使って学習進捗を可視化することができる。
 ```sh
-tensorboard --logdir logs
+tensorboard --logdir lightning_logs
 ```
-を実行し表示されたアドレスにアクセスする。
+をscreen等を用いてバックグラウンドで実行する。  
+これが実行されている間はtensorboardのサーバーが動いているので、ブラウザで`http://localhost:6006`にアクセスすると進捗を見ることができる。
