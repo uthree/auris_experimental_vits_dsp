@@ -70,7 +70,7 @@ def pitch_estimation_loss(logits, label):
     num_classes = logits.shape[1]
     device = logits.device
     weight = torch.ones(num_classes, device=device)
-    weight[0] = 1e-3
+    weight[0] = 1e-2
     return F.cross_entropy(logits, label, weight)
 
 
@@ -233,7 +233,7 @@ class Generator(nn.Module):
 
         # pitch estimation loss
         f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
-        loss_pe = pitch_estimation_loss(f0_logit, f0_label) * 45
+        loss_pe = pitch_estimation_loss(f0_logit, f0_label)
 
         loss_dict = {
                 "StochasticDurationPredictor": loss_sdp.item(),
