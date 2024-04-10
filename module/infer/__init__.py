@@ -12,4 +12,17 @@ from module.utils.config import load_json_file
 
 
 class Infer:
-    def __init__(self, config, speaker_list)
+    def __init__(self, config_path, metadata_path):
+        self.config = load_json_file(config)
+        self.metadata = load_json_file(metadata_path)
+        self.g2p = G2PProcessor()
+        self.lm = LanguageModel(config.language_model.type, config.language_model.options)
+
+    def audio_reconstruction(self):
+        pass
+
+    def text_to_speech(self):
+        pass
+
+    def singing_voice_conversion(self):
+        pass

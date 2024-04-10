@@ -37,7 +37,7 @@ dm = VitsDataModule(**config.train.data_module)
 model = Vits(config, task)
 model_path = Path(config.train.save.models_dir) / "vits.ckpt"
 if model_path.exists():
-    print(f"loading checkpoint from {args.checkpoint}")
+    print(f"loading checkpoint from {model_path}")
     model = Vits.load_from_checkpoint(model_path)
 model.task = task # set task
 print("if you need to check tensorboard, run `tensorboard -logdir lightning_logs`")
