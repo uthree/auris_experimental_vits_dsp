@@ -5,7 +5,7 @@ from module.infer import AurisInfer
 from module.utils.spectrogram import spectrogram
 
 auris = AurisInfer("models/generator.safetensors", "config/small.json")
-wf = auris.text_to_speech("こんにちは！、これはテストメッセージです。", "jvs003", "ja")
+wf = auris.text_to_speech("こんにちは！、これはテストメッセージです。", "jvs001", "ja")
 torchaudio.save("output.wav", wf, sample_rate=48000)
 
 generator = auris.generator

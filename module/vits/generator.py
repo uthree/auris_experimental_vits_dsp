@@ -54,14 +54,14 @@ def vits_kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
 
     kl = logs_p - logs_q - 0.5
     kl += 0.5 * ((z_p - m_p)**2) * torch.exp(-2. * logs_p)
-    kl = torch.sum(kl * z_mask)
+    kl = torch.sum((kl * z_mask).mean(dim=1))
     l = kl / torch.sum(z_mask)
     return l
 
 
 def recon_kl_divergence_loss(m_q, logs_q, z_mask):
     kl = -1 - logs_q + torch.exp(logs_q) + m_q ** 2
-    kl = torch.sum(kl * z_mask)
+    kl = torch.sum((kl * z_mask).mean(dim=1))
     l = kl / torch.sum(z_mask)
     return l
 
@@ -156,7 +156,7 @@ class Generator(nn.Module):
                 "KL Divergence": loss_kl.item(),
                 }
 
-        lossG = loss_kl + loss_pe
+        lossG = loss_pe + loss_kl
         return dsp_out, fake, lossG, loss_dict
 
 
