@@ -11,7 +11,7 @@ VITSをベースに改造するという形になる。
 具体的には、
 - DecoderをDSP+HnNSF-HiFiGANに変更
 - Text Encoderに言語モデルの特徴量を参照する機能をつけ、感情などを読み取れるように。
-- Feature Retrievalを追加し話者の再現性を向上させる
+- Feature Retrievalを追加し話者の再現性を向上させる  
 等の改造があげられる。
 
 ### 全体の構造

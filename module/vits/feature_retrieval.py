@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# Feature retrieval via kNN
+# Feature retrieval via kNN (like kNN-VC, RVC, etc...)
 # Warning: this method is not optimized.
 # Do not give long sequence. computing complexy is quadratic.
 # 

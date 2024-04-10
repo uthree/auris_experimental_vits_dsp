@@ -42,6 +42,7 @@ opt_lr = train.optimizer.lr
 opt_betas = train.optimizer.betas
 save_interval = train.save_interval
 tensorboard_interval = train.tensorboard_interval
+checkpoint_interval = train.checkpoint_interval
 frame_size = train.frame_size
 n_fft = train.n_fft
 sample_rate = train.sample_rate
@@ -52,6 +53,7 @@ device = torch.device(train.device)
 
 generator_path = Path('models') / 'generator.safetensors'
 discriminator_path = Path('models') / 'discriminator.safetensors'
+checkpoint_dir = Path('checkpoints')
 
 def load_tensors(model_path):
     tensors = {}
@@ -82,6 +84,14 @@ def save_models(gen, dis, generator_path, discriminator_path):
     print("Save Complete.")
 
 
+def save_checkpoint(gen, dis, checkpoint_dir: Path, step: int, task: str):
+    subdir_name = f"{task}_{step}"
+    subdir = checkpoint_dir / subdir_name
+    subdir.mkdir()
+    gen_path = subdir / "generator.safetensors"
+    dis_path = subdir / "discriminator.safetensors"
+    save_models(gen, dis, gen_path, dis_path)
+
 # Setup loss
 MelLoss = LogMelSpectrogramLoss(sample_rate).to(device)
 
@@ -96,7 +106,12 @@ OptG = optim.AdamW(G.parameters(), opt_lr, opt_betas)
 OptD = optim.AdamW(D.parameters(), opt_lr, opt_betas)
 scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
 
+# Initialize summary writer
 writer = SummaryWriter(log_dir="./logs")
+
+# Create checkopoint dir.
+if not checkpoint_dir.exists():
+    checkpoint_dir.mkdir()
 
 print("Start training")
 print("run `tensorboard --logdir logs` if you need show tensorboard")
@@ -185,12 +200,15 @@ for epoch in range(num_epoch):
             writer.add_audio("audio/DSP Output", dsp_preview, step_count, sample_rate)
             writer.add_audio("audio/GAN Output", fake_preview, step_count, sample_rate)
 
+        if step_count % save_interval == 0:
+            save_models(G, D, generator_path, discriminator_path)
+        if step_count % checkpoint_interval == 0:
+            save_checkpoint(G, D, checkpoint_dir, step_count, task)
+
         tqdm.write(f"G: {lossG.item():.4f}, D: {lossD.item():.4f}")
         bar.set_description(f"Epoch: {epoch}, Step: {step_count}")
         bar.update(N)
         step_count += 1
-        if batch % save_interval == 0:
-            save_models(G, D, generator_path, discriminator_path)
 
 print("Training Complete!")
 save_models(G, D, generator_path, discriminator_path)

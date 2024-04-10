@@ -120,7 +120,7 @@
 		"frame_size": 960,
 		"n_fft": 3840,
 		"cache": "dataset_cache",
-		"num_epoch": 100,
+		"num_epoch": 10000,
 		"batch_size": 2,
 		"optimizer": {
 			"lr": 1e-4,
@@ -128,6 +128,7 @@
 		},
 		"save_interval": 300,
 		"tensorboard_interval": 20,
+		"checkpoint_interval": 10000,
 		"use_amp": false
 	},
 
@@ -138,7 +139,7 @@
 		"frame_size": 960,
 		"n_fft": 3840,
 		"cache": "dataset_cache",
-		"num_epoch": 100,
+		"num_epoch": 10000,
 		"batch_size": 2,
 		"optimizer": {
 			"lr": 1e-4,
@@ -146,6 +147,7 @@
 		},
 		"save_interval": 300,
 		"tensorboard_interval": 20,
+		"checkpoint_interval": 10000,
 		"use_amp": false
 	}
 }
