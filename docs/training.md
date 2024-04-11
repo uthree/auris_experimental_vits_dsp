@@ -36,6 +36,7 @@ python3 train.py -c config/base.json -t vits
 
 ## 学習を再開する
 `models/vits.ckpt`を自動的に読み込んで再開してくれる。
+読み込みに失敗した場合はファイルが壊れているので、`lightning_logs/`内にある最新のckptを`vits.ckpt`に名前を変更して`models/`に配置することで復旧できる。
 
 ## 学習の状態を確認
 tensorboardというライブラリを使って学習進捗を可視化することができる。
