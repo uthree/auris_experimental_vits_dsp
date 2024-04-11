@@ -90,7 +90,7 @@ class Vits(L.LightningModule):
         loss_dict['Discriminator Adversarial'] = lossD.item()
 
         for k, v in zip(loss_dict.keys(), loss_dict.values()):
-            self.log(k, v)
+            self.log(f"loss/{k}", v)
 
     def configure_optimizers(self):
         lr = self.config.optimizer.lr

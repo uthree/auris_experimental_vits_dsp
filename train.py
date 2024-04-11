@@ -24,6 +24,8 @@ class SaveCheckpoint(L.Callback):
         super().__init__()
         self.models_dir = Path(models_dir)
         self.interval = interval
+        if not self.models_dir.exists():
+            self.models_dir.mkdir()
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         if batch_idx % self.interval == 0:
