@@ -45,7 +45,7 @@ def generate_path(duration, mask):
     return path
 
 
-def vits_kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
+def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
     z_p = z_p.float()
     logs_q = logs_q.float()
     m_p = m_p.float()
@@ -54,13 +54,6 @@ def vits_kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
 
     kl = logs_p - logs_q - 0.5
     kl += 0.5 * ((z_p - m_p)**2) * torch.exp(-2. * logs_p)
-    kl = torch.sum((kl * z_mask).mean(dim=1))
-    l = kl / torch.sum(z_mask)
-    return l
-
-
-def recon_kl_divergence_loss(m_q, logs_q, z_mask):
-    kl = -1 - logs_q + torch.exp(logs_q) + m_q ** 2
     kl = torch.sum((kl * z_mask).mean(dim=1))
     l = kl / torch.sum(z_mask)
     return l
@@ -208,7 +201,7 @@ class Generator(nn.Module):
         # calculate KL divergence loss
         m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
         logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
-        loss_kl = vits_kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
+        loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
 
         # calculate audio encoder loss
         z_ae, m_ae, logs_ae, _ = self.audio_encoder(spec, spec_len)
