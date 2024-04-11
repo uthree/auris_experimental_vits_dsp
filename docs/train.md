@@ -19,19 +19,8 @@ python3 preprocess.py jvs jvs_ver1/ -c config/base.json
 データセットを自作する場合(準備中)
 
 ## 学習を実行
-学習を効率化するため、先にある程度音声の再構築を学習しておくとよい。 
-`-t` オプションでタスクの種類を設定できる。  
- - `-t vits`: VITSに必要なすべてのタスクを学習する。
- - `-t recon`: 音声の再構築タスクのみを学習する。 
-
-### 音声再構築タスク
 ```sh
-python3 train.py -c config/base.json -t recon
-```
-
-### TTSタスク
-```sh
-python3 train.py -c config/base.json -t vits
+python3 train.py -c config/base.json
 ```
 
 ## 学習を再開する

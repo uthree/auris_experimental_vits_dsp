@@ -6,6 +6,7 @@ from .wn import WN
 class PosteriorEncoder(nn.Module):
     def __init__(self,
                  n_fft=3840,
+                 frame_size=960,
                  internal_channels=192,
                  speaker_embedding_dim=256,
                  content_channels=192,
@@ -15,6 +16,8 @@ class PosteriorEncoder(nn.Module):
         super().__init__()
 
         self.input_channels = n_fft // 2 + 1
+        self.n_fft = n_fft
+        self.frame_size = frame_size
         self.pre = nn.Conv1d(self.input_channels, internal_channels, 1)
         self.wn = WN(internal_channels, kernel_size, dilation, num_layers, speaker_embedding_dim)
         self.post = nn.Conv1d(internal_channels, content_channels * 2, 1)

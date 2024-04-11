@@ -17,7 +17,6 @@ from module.utils.dataset import VitsDataModule
 
 parser = argparse.ArgumentParser(description="train")
 parser.add_argument('-c', '--config', default='config/base.json')
-parser.add_argument('-t', '--task', default='vits', choices=['vits', 'recon'])
 args = parser.parse_args()
 
 class SaveCheckpoint(L.Callback):
@@ -32,14 +31,16 @@ class SaveCheckpoint(L.Callback):
             trainer.save_checkpoint(ckpt_path)
 
 config = load_json_file(args.config)
-task = args.task
 dm = VitsDataModule(**config.train.data_module)
-model = Vits(config, task)
 model_path = Path(config.train.save.models_dir) / "vits.ckpt"
+
 if model_path.exists():
     print(f"loading checkpoint from {model_path}")
     model = Vits.load_from_checkpoint(model_path)
-model.task = task # set task
+else:
+    print("initialize model")
+    model = Vits(config.vits)
+
 print("if you need to check tensorboard, run `tensorboard -logdir lightning_logs`")
 cb_save_checkpoint = SaveCheckpoint(config.train.save.models_dir, config.train.save.interval)
 trainer = L.Trainer(**config.train.trainer, callbacks=[cb_save_checkpoint])
