@@ -45,11 +45,13 @@ class Infer:
 
     @torch.inference_mode()
     def text_to_speech(
-            self, text: str,
+            self,
+            text: str,
             speaker: str,
             language: str,
-            style_text: Union[None, str]):
-        spk = self.speaker_id(speaker)
+            style_text: Union[None, str] = None
+            ):
+        spk = torch.LongTensor([self.speaker_id(speaker)])
         lm_feat, lm_feat_len = self.lm.encode([text], self.max_lm_tokens)
         if style_text is None:
             style_text = text

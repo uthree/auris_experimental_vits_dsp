@@ -145,7 +145,7 @@ class Generator(nn.Module):
         # decoder losses
         z_sliced = crop_features(z, crop_range)
         f0_sliced = crop_features(f0, crop_range)
-        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
+        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced, spk)
 
         # pitch estimation loss
         f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)

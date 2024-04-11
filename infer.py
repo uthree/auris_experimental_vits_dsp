@@ -1,5 +1,6 @@
 from pathlib import Path
 import argparse
+import json
 
 import torch
 import torchaudio
@@ -29,17 +30,20 @@ if not outputs_dir.exists():
     outputs_dir.mkdir()
 
 if args.task == 'recon':
-    print("task: Audio Reconstruction")
+    print("Task: Audio Reconstruction")
     # audio reconstruction task
     spk = args.speaker
 
     # get input path
     inputs_dir = Path(args.inputs)
     inputs = []
+
+    # load files
     for fmt in audio_formats:
         for path in inputs_dir.glob(f"*.{fmt}"):
             inputs.append(path)
 
+    # inference
     for path in inputs:
         print(f"Inferencing {path}")
 
@@ -57,3 +61,26 @@ if args.task == 'recon':
         # save
         save_path = outputs_dir / (path.stem + ".wav")
         torchaudio.save(save_path, wf, infer.sample_rate)
+
+elif args.task == 'tts':
+    print("Task: Text to Speech")
+
+    # get input path
+    inputs_dir = Path(args.inputs)
+
+    # load files
+    inputs = []
+    for path in inputs_dir.glob("*.json"):
+        inputs.append(path)
+
+    # inference
+    for path in inputs:
+        print(f"Inferencing {path}")
+        t = json.load(open(path))
+        for k, v in zip(t.keys(), t.values()):
+            print(f"  Inferencing {k}")
+            wf = infer.text_to_speech(**v).squeeze(1)
+
+            # save
+            save_path = outputs_dir / (f"{path.stem}_{k}.wav")
+            torchaudio.save(save_path, wf, infer.sample_rate)
