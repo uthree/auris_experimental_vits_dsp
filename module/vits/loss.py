@@ -7,7 +7,7 @@ import torchaudio
 def safe_log(x, eps=1e-6):
     return torch.log(x + eps)
 
-def ms_stft_loss(x, y, scales=[16, 32, 64, 128, 256, 512]):
+def multiscale_stft_loss(x, y, scales=[16, 32, 64, 128, 256, 512]):
     x = x.to(torch.float)
     y = y.to(torch.float)
 

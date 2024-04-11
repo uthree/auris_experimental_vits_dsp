@@ -7,7 +7,7 @@ import lightning as L
 
 from .generator import Generator
 from .discriminator import Discriminator
-from .loss import ms_stft_loss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
+from .loss import multiscale_stft_loss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
 from .crop import crop_features, crop_waveform, decide_crop_range
 from .spectrogram import spectrogram
 
@@ -51,8 +51,8 @@ class Vits(L.LightningModule):
         dsp_out, fake, lossG, loss_dict = self.generator.train_vits(
                 spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk, lang, crop_range)
 
-        loss_dsp = ms_stft_loss(dsp_out, real)
-        loss_stft = ms_stft_loss(fake, real)
+        loss_dsp = multiscale_stft_loss(dsp_out, real)
+        loss_stft = multiscale_stft_loss(fake, real)
         logits_fake, fmap_fake = self.discriminator(fake)
         _, fmap_real = self.discriminator(real)
         loss_feat = feature_matching_loss(fmap_real, fmap_fake)
