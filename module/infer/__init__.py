@@ -23,13 +23,13 @@ class Infer:
         self.generator = vits.generator.to(device)
 
         # TODO: load from config
-        self.max_lm_tokens = 30
-        self.max_phonemes = 50
-        self.max_frames = 2000
+        self.max_lm_tokens = self.config.infer.max_lm_tokens
+        self.max_phonemes = self.config.infer.max_phonemes
+        self.max_frames = self.config.infer.max_frames
 
-        self.n_fft = self.config.generator.decoder.n_fft
-        self.frame_size = self.config.generator.decoder.frame_size
-        self.sample_rate = self.config.generator.decoder.sample_rate
+        self.n_fft = self.config.infer.n_fft
+        self.frame_size = self.config.infer.frame_size
+        self.sample_rate = self.config.infer.sample_rate
 
     def speakers(self):
         return self.metadata.speakers

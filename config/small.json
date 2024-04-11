@@ -157,5 +157,14 @@
 			"frames": 50,
 			"frame_size": 960
 		}
+	},
+
+	"infer": {
+		"n_fft": 3840,
+		"frame_size": 960,
+		"sample_rate": 48000,
+		"max_lm_tokens": 30,
+		"max_phonemes": 50,
+		"max_frames": 2000
 	}
 }
