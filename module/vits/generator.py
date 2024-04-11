@@ -69,6 +69,13 @@ def pitch_estimation_loss(logits, label):
 
 # run Monotonic Alignment Search (MAS).
 # MAS associates phoneme sequences with sounds.
+# 
+# z_p: [b, d, t']
+# m_p: [b, d, t]
+# logs_p: [b, d, t]
+# text_mask: [b, 1, t]
+# spec_mask: [b, 1, t']
+# Output: [b, 1, t', t]
 def search_path(z_p, m_p, logs_p, text_mask, spec_mask, mas_noise_scale=0.1):
     with torch.no_grad():
         # calculate nodes
