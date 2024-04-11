@@ -4,6 +4,7 @@
 			"sample_rate": 48000,
 			"frame_size": 960,
 			"n_fft": 3840,
+			"speaker_embedding_dim": 256,
 			"content_channels": 192,
 			"pe_internal_channels": 256,
 			"pe_num_layers": 2,
@@ -116,7 +117,7 @@
 	"train": {
 		"save": {
 			"models_dir": "models",
-			"interval": 200
+			"interval": 400
 		},
 
 		"data_module": {

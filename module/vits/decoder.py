@@ -106,6 +106,7 @@ class FiLM(nn.Module):
 class PitchEstimator(nn.Module):
     def __init__(self,
                  content_channels=192,
+                 speaker_embedding_dim=256,
                  internal_channels=512,
                  num_classes=512,
                  kernel_size=7,
@@ -120,7 +121,8 @@ class PitchEstimator(nn.Module):
         self.classes_per_octave = classes_per_octave
         self.min_frequency = min_frequency
 
-        self.input_layer = nn.Conv1d(content_channels, internal_channels, 1)
+        self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
+        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
         self.input_norm = LayerNorm(internal_channels)
         self.mid_layers = nn.Sequential(
                 *[ConvNeXtLayer(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
@@ -128,8 +130,8 @@ class PitchEstimator(nn.Module):
         self.output_layer = nn.Conv1d(internal_channels, num_classes, 1)
 
     # x: [BatchSize, content_channels, Length]
-    def forward(self, x):
-        x = self.input_layer(x)
+    def forward(self, content, spk):
+        x = self.content_input(content) + self.speaker_input(spk)
         x = self.input_norm(x)
         x = self.mid_layers(x)
         x = self.output_norm(x)
@@ -154,8 +156,8 @@ class PitchEstimator(nn.Module):
         return x
     
     # x: [BatchSize, content_channels, Length]
-    def infer(self, x, k=4):
-        logits = self.forward(x)
+    def infer(self, content, spk, k=4):
+        logits = self.forward(content, spk)
         probs, indices = torch.topk(logits, k, dim=1)
         probs = F.softmax(probs, dim=1)
         freqs = self.freq2id(indices)
@@ -167,6 +169,7 @@ class PitchEstimator(nn.Module):
 class SourceNet(nn.Module):
     def __init__(self,
                  content_channels=192,
+                 speaker_embedding_dim=256,
                  internal_channels=512,
                  sample_rate=48000,
                  frame_size=960,
@@ -177,6 +180,7 @@ class SourceNet(nn.Module):
                  mlp_mul=3):
         super().__init__()
         self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
+        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
         self.f0_input = nn.Conv1d(1, internal_channels, 1)
         self.input_norm = LayerNorm(internal_channels)
         self.mid_layers = nn.Sequential(
@@ -187,8 +191,9 @@ class SourceNet(nn.Module):
 
     # x: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
-    def forward(self, x, f0):
-        x = self.content_input(x) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    def forward(self, x, f0, spk):
+        x = self.content_input(x) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
         x = self.input_norm(x)
         x = self.mid_layers(x)
         x = self.output_norm(x)
@@ -425,6 +430,7 @@ class DownBlock(nn.Module):
 class FilterNet(nn.Module):
     def __init__(self,
                  content_channels=192,
+                 speaker_embedding_dim=256,
                  channels=[512, 256, 128, 64, 32],
                  resblock_type='1',
                  factors=[5, 4, 4, 4, 3],
@@ -436,6 +442,7 @@ class FilterNet(nn.Module):
         super().__init__()
         # input layer
         self.content_input = weight_norm(nn.Conv1d(content_channels, channels[0], 1))
+        self.speaker_input = weight_norm(nn.Conv1d(speaker_embedding_dim, channels[0], 1))
         self.f0_input = weight_norm(nn.Conv1d(1, channels[0], 1))
 
         # downsamples
@@ -459,10 +466,11 @@ class FilterNet(nn.Module):
 
     # content: [BatchSize, content_channels, Length(frame)]
     # f0: [BatchSize, 1, Length(frame)]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
     # source: [BatchSize, num_harmonics+2, Length(Waveform)]
     # Output: [Batchsize, 1, Length * frame_size]
-    def forward(self, content, f0, source):
-        x = self.content_input(content) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
+    def forward(self, content, f0, spk, source):
+        x = self.content_input(content) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
 
         skips = []
         for down in self.downs:
@@ -475,8 +483,9 @@ class FilterNet(nn.Module):
         return x
 
     def remove_weight_norm(self):
-        remove_weight_norm(self.content_in)
+        remove_weight_norm(self.content_input)
         remove_weight_norm(self.output_layer)
+        remove_weight_norm(self.speaker_input)
         for down in self.downs:
             down.remove_weight_norm()
         for up in self.ups:
@@ -489,6 +498,7 @@ class Decoder(nn.Module):
                  frame_size=960,
                  n_fft=3840,
                  content_channels=192,
+                 speaker_embedding_dim=192,
                  pe_internal_channels=512,
                  pe_num_layers=6,
                  source_internal_channels=512,
@@ -507,10 +517,12 @@ class Decoder(nn.Module):
         self.num_harmonics = num_harmonics
         self.pitch_estimator = PitchEstimator(
                 content_channels,
+                speaker_embedding_dim,
                 pe_internal_channels,
                 num_layers=pe_num_layers)
         self.source_net = SourceNet(
                 content_channels,
+                speaker_embedding_dim,
                 source_internal_channels,
                 source_num_layers,
                 frame_size,
@@ -518,6 +530,7 @@ class Decoder(nn.Module):
                 num_harmonics)
         self.filter_net = FilterNet(
                 content_channels,
+                speaker_embedding_dim,
                 filter_channels,
                 filter_resblock_type,
                 filter_factors,
@@ -530,16 +543,18 @@ class Decoder(nn.Module):
     #
     # content: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    #
     # Outputs:
     #   f0_logits [BatchSize, num_f0_classes, Length]
     #   dsp_out: [BatchSize, Length * frame_size]
     #   output: [BatchSize, Length * frame_size]
-    def forward(self, content, f0):
+    def forward(self, content, f0, spk):
         # estimate pitch 
-        f0_logits = self.pitch_estimator(content)
+        f0_logits = self.pitch_estimator(content, spk)
         
         # estimate amplitudes each harmonics, noise filter kernels
-        amps, kernels = self.source_net(content, f0)
+        amps, kernels = self.source_net(content, f0, spk)
 
         # oscillate source signals
         harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
@@ -550,7 +565,7 @@ class Decoder(nn.Module):
         dsp_out = source.sum(dim=1)
 
         # GAN output
-        output = self.filter_net(content, f0, source)
+        output = self.filter_net(content, f0, spk, source)
         output = output.squeeze(1)
 
         return f0_logits, dsp_out, output
@@ -563,13 +578,13 @@ class Decoder(nn.Module):
     # reference: None or [BatchSize, content_channels, NumReferenceVectors]
     # alpha: float 0 ~ 1.0
     # k: int
-    def infer(self, content, reference=None, alpha=0, k=4, metrics='cos'):
-        f0 = self.pitch_estimator.infer(content)
+    def infer(self, content, spk, reference=None, alpha=0, k=4, metrics='cos'):
+        f0 = self.pitch_estimator.infer(content, spk)
         # run feature retrieval if got reference vectors
         if reference is not None:
             content = match_features(content, reference, k, alpha, metrics)
 
-        amps, kernels = self.source_net(content, f0)
+        amps, kernels = self.source_net(content, f0, spk)
 
         # oscillate source signals
         harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
@@ -577,5 +592,5 @@ class Decoder(nn.Module):
         source = torch.cat([harmonics, noise], dim=1)
 
         # filter network
-        output = self.filter_net(content, f0, source)
+        output = self.filter_net(content, f0, spk, source)
         return output

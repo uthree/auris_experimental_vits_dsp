@@ -175,3 +175,9 @@ models
 logs/*
 lightning_logs
 lightning_logs/*
+outputs
+outputs/*
+audio_inputs/*
+audio_inputs
+text_inputs/*
+text_inputs

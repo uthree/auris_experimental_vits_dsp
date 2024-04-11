@@ -17,7 +17,6 @@ VITSをベースに改造するという形になる。
 ### 全体の構造
 ![](./images/auris_architecture.png)
 VITSの構造とほぼ同じ。
-細かい相違点としては、Decoderが話者情報を取らなくなっている。これは、学習時はPosterior Encoderが、推論時はFlowが話者情報を付与するため、Decoder側で話者情報を付与しなくてもデコードできるだろうという考えからくるものである。
 
 ### デコーダー
 ![](./images/auris_decoder.png)

@@ -229,7 +229,7 @@ class Generator(nn.Module):
         # decoder losses
         z_sliced = crop_features(z, crop_range)
         f0_sliced = crop_features(f0, crop_range)
-        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced)
+        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced, spk)
 
         # pitch estimation loss
         f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
@@ -261,9 +261,11 @@ class Generator(nn.Module):
             max_frames=2000,
             use_sdp=True
             ):
+        # encode text
         text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, lang)
         spk = self.speaker_embedding(spk)
 
+        # predict duration
         if use_sdp:
             log_duration = self.stochastic_duration_predictor(text_encoded, text_mask, g=spk, reverse=True)
             duration = torch.exp(log_duration)
@@ -276,12 +278,30 @@ class Generator(nn.Module):
         MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1)
         MAS_path = generate_path(duration, MAS_node_mask).float()
 
+        # projection
         m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
         logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
 
+        # sample from gaussian
         z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
+
+        # add speaker infomation
         z = self.flow(z_p, spec_mask, spk, reverse=True)
-        fake = self.decoder.infer(z)
+
+        # decode
+        fake = self.decoder.infer(z, spk)
+        return fake
+
+    @torch.no_grad()
+    def audio_reconstruction(self, spec, spec_len, spk):
+        # embed speaker
+        spk = self.speaker_embedding(spk)
+
+        # encode linear spectrogram and speaker infomation
+        z, m_q, logs_q, spec_mask = self.posterior_encoder(spec, spec_len, spk)
+
+        # decode
+        fake = self.decoder.infer(z, spk)
         return fake
 
     @torch.no_grad()
