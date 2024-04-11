@@ -80,13 +80,14 @@ def search_path(z_p, m_p, logs_p, text_mask, spec_mask, mas_noise_scale=0.1):
         neg_cent4 = torch.sum(-0.5 * (m_p ** 2) * s_p_sq_r, dim=1, keepdim=True) # [b, 1, t]
         neg_cent = neg_cent1 + neg_cent2 + neg_cent3 + neg_cent4 # [b, t', t]
 
-        # mask unnecessary nodes, run D.P.
-        MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1) # [b, 1, t] * [b, t', 1] = [b, t', t]
-        MAS_path = maximum_path(neg_cent, MAS_node_mask.squeeze(1)).unsqueeze(1).detach() # [b, 1, 't, t]
-
+        # add noise
         if mas_noise_scale > 0.0:
             eps = torch.std(neg_cent) * torch.randn_like(neg_cent) * mas_noise_scale
             neg_cent += eps
+
+        # mask unnecessary nodes, run D.P.
+        MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1) # [b, 1, t] * [b, t', 1] = [b, t', t]
+        MAS_path = maximum_path(neg_cent, MAS_node_mask.squeeze(1)).unsqueeze(1).detach() # [b, 1, 't, t]
     return MAS_path
 
 
