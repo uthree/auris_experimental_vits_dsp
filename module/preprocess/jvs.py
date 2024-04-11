@@ -4,7 +4,7 @@ from .processor import Preprocessor
 from tqdm import tqdm
 
 
-def process_category(path: Path, processor: Preprocessor, speaker_name, config):
+def process_category(path: Path, category, processor: Preprocessor, speaker_name, config):
     print(f"Ppocessing {str(path)}")
     audio_dir = path / "wav24kHz16bit"
     transcription_path = path / "transcripts_utf8.txt"
@@ -24,7 +24,7 @@ def process_category(path: Path, processor: Preprocessor, speaker_name, config):
                     transcription,
                     'ja',
                     speaker_name,
-                    str(counter)
+                    f"{category}_{counter}"
                     )
             counter += 1
 
@@ -35,5 +35,5 @@ def preprocess_jvs(jvs_root: Path, config):
         if subdir.is_dir():
             print(f"Processing {subdir}")
             speaker_name = subdir.name
-            process_category(subdir / "nonpara30", processor, speaker_name, config)
-            process_category(subdir / "parallel100", processor, speaker_name, config)
+            process_category(subdir / "nonpara30", "nonpara30", processor, speaker_name, config)
+            process_category(subdir / "parallel100", "paralell100", processor, speaker_name, config)
