@@ -26,15 +26,18 @@ MITライセンスのリポジトリからソースコードをコピペした�
 - [Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech](https://arxiv.org/abs/2106.06103)
 - [VITS2: Improving Quality and Efficiency of Single-Stage Text-to-Speech with Adversarial Learning and Architecture Design](https://arxiv.org/abs/2307.16430)
 
-#### デコーダーを設計する際に参考にした論文
+#### Decoderを設計する際に参考にした論文
 - [HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis](https://arxiv.org/abs/2010.05646)
 - [FastSVC: Fast Cross-Domain Singing Voice Conversion with Feature-wise Linear Modulation](https://arxiv.org/abs/2011.05731)
 - [DDSP: Differentiable Digital Signal Processing](https://arxiv.org/abs/2001.04643)
 - [VISinger 2: High-Fidelity End-to-End Singing Voice Synthesis Enhanced by Digital Signal Processing Synthesizer](https://arxiv.org/abs/2211.02903)
 - [Neural Concatenative Singing Voice Conversion: Rethinking Concatenation-Based Approach for One-Shot Singing Voice Conversion](https://arxiv.org/abs/2312.04919)
 
-#### Feature Retrieval
+#### Feature Retrieval (特徴量検索)
 - [Voice Conversion With Just Nearest Neighbors](https://arxiv.org/abs/2305.18975)
 
 #### 言語モデル
 - [RoBERTa: A Robustly Optimized BERT Pretraining Approach](https://arxiv.org/abs/1907.11692)
+
+#### その他
+- [GAN Vocoder: Multi-Resolution Discriminator Is All You Need](https://arxiv.org/abs/2103.05236)
