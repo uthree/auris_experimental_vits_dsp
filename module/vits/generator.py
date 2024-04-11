@@ -221,10 +221,10 @@ class Generator(nn.Module):
                 text_mask, 
                 w=duration,
                 g=spk
-                ).sum()
+                ).sum() / text_mask.sum()
         logw_ = torch.log(duration + 1e-6) * text_mask
         logw = self.duration_predictor(text_encoded, text_mask, spk)
-        loss_dp = (torch.sum((logw - logw_) ** 2, dim=(1, 2)) / torch.sum(text_mask)).mean()
+        loss_dp = torch.sum((logw - logw_) ** 2) / torch.sum(text_mask)
 
         # decoder losses
         z_sliced = crop_features(z, crop_range)
