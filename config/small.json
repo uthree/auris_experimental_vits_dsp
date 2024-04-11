@@ -165,6 +165,7 @@
 		"sample_rate": 48000,
 		"max_lm_tokens": 30,
 		"max_phonemes": 50,
-		"max_frames": 2000
+		"max_frames": 2000,
+		"device": "cuda"
 	}
 }

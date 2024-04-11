@@ -19,8 +19,10 @@ parser.add_argument('-meta', '--metadata', default='models/metadata.json')
 args = parser.parse_args()
 
 outputs_dir = Path(args.outputs)
+
 # load model
 infer = Infer(args.checkpoint, args.config, args.metadata)
+device = infer.device
 
 # support audio formats
 audio_formats = ['mp3', 'wav', 'ogg']
@@ -56,7 +58,7 @@ if args.task == 'recon':
 
         # infer
         spk = args.speaker
-        wf = infer.audio_reconstruction(wf, spk).squeeze(1)
+        wf = infer.audio_reconstruction(wf, spk).squeeze(1).cpu()
 
         # save
         save_path = outputs_dir / (path.stem + ".wav")
@@ -79,7 +81,7 @@ elif args.task == 'tts':
         t = json.load(open(path))
         for k, v in zip(t.keys(), t.values()):
             print(f"  Inferencing {k}")
-            wf = infer.text_to_speech(**v).squeeze(1)
+            wf = infer.text_to_speech(**v).squeeze(1).cpu()
 
             # save
             save_path = outputs_dir / (f"{path.stem}_{k}.wav")

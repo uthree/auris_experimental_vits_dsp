@@ -15,6 +15,7 @@ from module.utils.config import load_json_file
 
 class Infer:
     def __init__(self, checkpoint_path, config_path, metadata_path, device=torch.device('cpu')):
+        self.device = device
         self.config = load_json_file(config_path)
         self.metadata = load_json_file(metadata_path)
         self.g2p = G2PProcessor()
@@ -56,6 +57,15 @@ class Infer:
         if style_text is None:
             style_text = text
         phoneme, phoneme_len, lang = self.g2p.encode([style_text], [language], self.max_phonemes)
+
+        device = self.device
+        phoneme = phoneme.to(device)
+        phoneme_len = phoneme_len.to(device)
+        lm_feat = lm_feat.to(device)
+        lm_feat_len = lm_feat_len.to(device)
+        spk = spk.to(device)
+        lang = lang.to(device)
+
         wf = self.generator.text_to_speech(
                 phoneme,
                 phoneme_len,
@@ -67,11 +77,17 @@ class Infer:
         return wf
 
     # wf: [1, Length]
-    def audio_reconstruction(self, wf, speaker:str):
+    def audio_reconstruction(self, wf: torch.Tensor, speaker:str):
         spk = torch.LongTensor([self.speaker_id(speaker)])
         wf = wf.sum(dim=0, keepdim=True)
         spec = spectrogram(wf, self.n_fft, self.frame_size)
         spec_len = torch.LongTensor([spec.shape[2]])
+
+        device = self.device
+        spec = spec.to(device)
+        spec_len = spec_len.to(device)
+        spk = spk.to(device)
+
         wf = self.generator.audio_reconstruction(spec, spec_len, spk)
         return wf
 
