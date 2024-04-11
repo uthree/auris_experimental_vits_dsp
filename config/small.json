@@ -4,8 +4,8 @@
 			"sample_rate": 48000,
 			"frame_size": 960,
 			"n_fft": 3840,
-			"speaker_embedding_dim": 256,
-			"content_channels": 192,
+			"speaker_embedding_dim": 128,
+			"content_channels": 96,
 			"pe_internal_channels": 256,
 			"pe_num_layers": 2,
 			"source_internal_channels": 256,
@@ -21,18 +21,18 @@
 		
 		"posterior_encoder": {
 			"n_fft" : 3840,
-			"internal_channels": 192,
-			"speaker_embedding_dim": 256,
-			"content_channels": 192,
+			"internal_channels": 96,
+			"speaker_embedding_dim": 128,
+			"content_channels": 96,
 			"kernel_size": 5,
 			"dilation": 1,
 			"num_layers": 16
 		},
 
 		"flow": {
-			"content_channels": 192,
-			"internal_channels": 192,
-			"speaker_embedding_dim": 256,
+			"content_channels": 96,
+			"internal_channels": 96,
+			"speaker_embedding_dim": 128,
 			"kernel_size": 5,
 			"dilation": 1,
 			"num_layers": 4,
@@ -41,7 +41,7 @@
 
 		"speaker_embedding": {
 			"num_speakers": 8192,
-			"embedding_dim": 256
+			"embedding_dim": 128
 		},
 
 		"text_encoder": {
@@ -49,32 +49,32 @@
 			"num_languages": 256,
 			"lm_dim": 768,
 			"internal_channels": 256,
-			"content_channels": 192,
+			"content_channels": 96,
 			"n_heads": 4,
 			"num_layers": 4,
 			"window_size": 4
 		},
 
 		"stochastic_duration_predictor": {
-			"in_channels": 192,
+			"in_channels": 96,
 			"filter_channels": 256,
 			"kernel_size": 5,
 			"p_dropout": 0.0,
-			"speaker_embedding_dim": 256
+			"speaker_embedding_dim": 128
 		},
 
 		"duration_predictor": {
-			"content_channels": 192,
+			"content_channels": 96,
 			"internal_channels": 256,
-			"speaker_embedding_dim": 256,
+			"speaker_embedding_dim": 128,
 			"kernel_size": 7,
 			"num_layers": 4
 		},
 
 		"audio_encoder": {
 			"n_fft": 3840,
-			"internal_channels": 192,
-			"content_channels": 192,
+			"internal_channels": 96,
+			"content_channels": 96,
 			"kernel_size": 7,
 			"num_layers": 4
 		}
