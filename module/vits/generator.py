@@ -285,6 +285,10 @@ class Generator(nn.Module):
         # sample from gaussian
         z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
 
+        # crop max frames
+        if z_p.shape[2] > max_frames:
+            z_p = z_p[:, :, :max_frames]
+
         # add speaker infomation
         z = self.flow(z_p, spec_mask, spk, reverse=True)
 
