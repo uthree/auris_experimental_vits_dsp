@@ -116,8 +116,8 @@
 		"lm_max_tokens": 30,
 		"frame_size": 960,
 		"cache": "dataset_cache"
-    },
-    "train":{
+	},
+    "train": {
         "save": {
 			"models_dir": "models",
 			"interval": 400
@@ -136,7 +136,7 @@
 			"precision": null
 		}
     },
-    "infer":{
+    "infer": {
         "n_fft": 3840,
 		"frame_size": 960,
 		"sample_rate": 48000,

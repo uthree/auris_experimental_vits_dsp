@@ -67,7 +67,7 @@ class Preprocessor:
                 }
 
         # get target dir.
-        cache_dir = Path(self.config['preprocess']['cache'])
+        cache_dir = Path(self.config.preprocess.cache)
         subdir = cache_dir / speaker_name
 
         # check exists subdir
