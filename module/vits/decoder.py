@@ -648,5 +648,4 @@ class Decoder(nn.Module):
 
         # filter network
         output = self.filter_net(content, f0, spk, source)
-        output = source[:, 0]
         return output
