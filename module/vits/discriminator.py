@@ -6,7 +6,7 @@ from module.utils.common import get_padding
 
 
 class DiscriminatorP(nn.Module):
-    def __init__(self, period, kernel_size=5, stride=3, channels=32, num_layers=4, max_channels=256, use_spectral_norm=False):
+    def __init__(self, period, kernel_size=5, stride=3, channels=32, channels_mul=4, num_layers=4, max_channels=256, use_spectral_norm=False):
         super().__init__()
         self.period = period
         norm_f = nn.utils.weight_norm if use_spectral_norm == False else nn.utils.spectral_norm
@@ -17,7 +17,7 @@ class DiscriminatorP(nn.Module):
 
         convs = [nn.Conv2d(1, c, (k, 1), (s, 1), (get_padding(5, 1), 0), padding_mode='replicate')]
         for i in range(num_layers):
-            c_next = min(c * 2, max_channels)
+            c_next = min(c * channels_mul, max_channels)
             convs.append(nn.Conv2d(c, c_next, (k, 1), (s, 1), (get_padding(5, 1), 0), padding_mode='replicate'))
             c = c_next
         self.convs = nn.ModuleList([norm_f(c) for c in convs])
@@ -48,6 +48,7 @@ class MultiPeriodicDiscriminator(nn.Module):
             self,
             periods=[1, 2, 3, 5, 7, 11],
             channels=32,
+            channels_mul=4,
             max_channels=256,
             num_layers=4,
             ):
@@ -56,6 +57,7 @@ class MultiPeriodicDiscriminator(nn.Module):
         for p in periods:
             self.sub_discs.append(DiscriminatorP(p,
                                                  channels=channels,
+                                                 channels_mul=channels_mul,
                                                  max_channels=max_channels,
                                                  num_layers=num_layers))
 

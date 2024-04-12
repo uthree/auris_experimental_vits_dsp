@@ -120,9 +120,11 @@
                     2,
                     3,
                     5,
-                    7
+                    7,
+                    11
                 ],
                 "channels": 32,
+                "channels_mul": 2,
                 "max_channels": 256,
                 "num_layers": 4
             }
@@ -159,7 +161,7 @@
         "data_module": {
             "cache_dir": "dataset_cache",
             "metadata": "models/metadata.json",
-            "batch_size": 4,
+            "batch_size": 8,
             "num_workers": 7
         },
         "trainer": {
