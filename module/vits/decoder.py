@@ -226,7 +226,7 @@ class SourceNet(nn.Module):
         # oscillate source signals
         harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, self.num_harmonics)
         amps = F.interpolate(amps, scale_factor=self.frame_size, mode='linear')
-        #harmonics = harmonics * amps
+        harmonics = harmonics * amps
         noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
         source = torch.cat([harmonics, noise], dim=1)
         dsp_out = torch.sum(source, dim=1, keepdim=True)
