@@ -16,6 +16,7 @@ from .crop import crop_features
 
 from .monotonic_align import maximum_path
 
+
 def sequence_mask(length, max_length=None):
     if max_length is None:
         max_length = length.max()
@@ -54,7 +55,7 @@ def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
 
     kl = logs_p - logs_q - 0.5
     kl += 0.5 * ((z_p - m_p)**2) * torch.exp(-2. * logs_p)
-    kl = torch.sum((kl * z_mask).mean(dim=1))
+    kl = torch.sum(kl * z_mask)
     l = kl / torch.sum(z_mask)
     return l
 
@@ -111,57 +112,7 @@ class Generator(nn.Module):
         self.duration_predictor = DurationPredictor(**config.duration_predictor)
         self.stochastic_duration_predictor = StochasticDurationPredictor(**config.stochastic_duration_predictor)
 
-
-    # reconstruction training pass
-    # spec: [BatchSize, fft_bin, Length]
-    # spec_len: [BatchSize]
-    # f0: [Batchsize, 1, Length]
-    # spk: [BatchSize]
-    # lang: [BatchSize]
-    # crop_range: Tuple[int, int]
-    #
-    # Outputs:
-    #   dsp_out: [BatchSize, Length * frame_size]
-    #   fake: [BatchSize, Length * frame_size]
-    #   lossG: [1]
-    #   loss_dict: Dict[str: float]
-    #   
-    def train_recon(
-            self,
-            spec,
-            spec_len,
-            f0,
-            spk,
-            crop_range
-            ):
-        # embed speaker
-        spk = self.speaker_embedding(spk)
-
-        # encode linear spectrogram and speaker infomation
-        z, m_q, logs_q, spec_mask = self.posterior_encoder(spec, spec_len, spk)
-
-        # KL Divergence loss
-        loss_kl = recon_kl_divergence_loss(m_q, logs_q, spec_mask)
-
-        # decoder losses
-        z_sliced = crop_features(z, crop_range)
-        f0_sliced = crop_features(f0, crop_range)
-        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced, spk)
-
-        # pitch estimation loss
-        f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
-        loss_pe = pitch_estimation_loss(f0_logit, f0_label)
-
-        loss_dict = {
-                "PitchEstimator": loss_pe.item(),
-                "KL Divergence": loss_kl.item(),
-                }
-
-        lossG = loss_pe + loss_kl
-        return dsp_out, fake, lossG, loss_dict
-
-
-    # vits training pass
+    # training pass
     #
     # spec: [BatchSize, fft_bin, Length]
     # spec_len: [BatchSize]
@@ -180,7 +131,7 @@ class Generator(nn.Module):
     #   lossG: [1]
     #   loss_dict: Dict[str: float]
     #
-    def train_vits(
+    def forward(
             self,
             spec,
             spec_len,

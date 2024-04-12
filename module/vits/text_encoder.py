@@ -58,7 +58,7 @@ class TextEncoder(nn.Module):
         max_length = x.shape[1]
         progression = torch.arange(max_length, dtype=x_length.dtype, device=x_length.device)
         x_mask = (progression.unsqueeze(0) < x_length.unsqueeze(1))
-        x_mask = x_mask.unsqueeze(1).to(x.dtype)
+        x_mask = x_mask.unsqueeze(1).to(y.dtype)
         z_mask = x_mask
 
         # y mask

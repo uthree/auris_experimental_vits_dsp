@@ -32,6 +32,8 @@ class LanguageModel:
         # crop
         if L > max_length:
             features = features[:, :max_length, :]
+        # length
+        length = min(length, max_length)
 
         return features, length
 

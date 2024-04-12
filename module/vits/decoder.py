@@ -55,7 +55,7 @@ def oscillate_harmonics(f0,
     return harmonics.to(device)
 
 
-# Oscillate noise
+# Oscillate noise via gaussian noise and equalizer
 #
 # fft_bin = n_fft // 2 + 1
 # kernels: [BatchSize, fft_bin, Frames]
@@ -255,7 +255,7 @@ class ResBlock2(nn.Module):
             padding = get_padding(kernel_size, d)
             self.convs.append(
                     weight_norm(
-                        nn.Conv1d(channels, channels, kernel_size, padding, dilation=d, padding_mode='replicate')))
+                        nn.Conv1d(channels, channels, kernel_size, 1, padding, dilation=d, padding_mode='replicate')))
             self.films.append(FiLM(channels, condition_channels))
         self.convs.apply(init_weights)
         self.films.apply(init_weights)
@@ -288,7 +288,7 @@ class ResBlock3(nn.Module):
             padding = get_padding(kernel_size, d)
             self.convs.append(
                     weight_norm(
-                        nn.Conv1d(channels, channels, kernel_size, padding, dilation=d, padding_mode='replicate')))
+                        nn.Conv1d(channels, channels, kernel_size, 1, padding, dilation=d, padding_mode='replicate')))
         for _ in range(2):
             self.films.append(
                     FiLM(channels, condition_channels))
@@ -335,6 +335,8 @@ class MRF(nn.Module):
             block = ResBlock1
         elif resblock_type == '2':
             block = Resblock2
+        elif resblock_type == '3':
+            block = ResBlock3
         for k, d in zip(kernel_sizes, dilations):
             self.blocks.append(block(channels, condition_channels, k, d))
 
@@ -362,21 +364,31 @@ class UpBlock(nn.Module):
                  factor,
                  resblock_type='1',
                  kernel_sizes=[3, 7, 11],
-                 dilations=[[1, 3, 5], [1, 3, 5], [1, 3, 5]]):
+                 dilations=[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+                 interpolation='conv'):
         super().__init__()
         self.MRF = MRF(out_channels, condition_channels, resblock_type, kernel_sizes, dilations)
-        self.up_conv = weight_norm(
-                nn.ConvTranspose1d(in_channels, out_channels, factor*2, factor))
-        self.pad_left = factor // 2
-        self.pad_right = factor - self.pad_left
+        self.interpolation = interpolation
+        self.factor = factor
+        if interpolation == 'conv':
+            self.up_conv = weight_norm(
+                    nn.ConvTranspose1d(in_channels, out_channels, factor*2, factor))
+            self.pad_left = factor // 2
+            self.pad_right = factor - self.pad_left
+        elif interpolation == 'linear':
+            self.up_conv = weight_norm(nn.Conv1d(in_channels, out_channels, 1))
 
     # x: [BatchSize, in_channels, Length]
     # c: [BatchSize, condition_channels, Length(upsampled)]
     # Output: [BatchSize, out_channels, Length(upsampled)]
     def forward(self, x, c):
         x = F.leaky_relu(x, 0.1)
-        x = self.up_conv(x)
-        x = x[:, :, self.pad_left:-self.pad_right]
+        if self.interpolation == 'conv':
+            x = self.up_conv(x)
+            x = x[:, :, self.pad_left:-self.pad_right]
+        elif self.interpolation == 'linear':
+            x = self.up_conv(x)
+            x = F.interpolate(x, scale_factor=self.factor)
         x = self.MRF(x, c)
         return x
 
@@ -391,7 +403,8 @@ class DownBlock(nn.Module):
                  out_channels,
                  factor,
                  dilations=[[1, 2], [4, 8]],
-                 kernel_size=3):
+                 kernel_size=3,
+                 interpolation='conv'):
         super().__init__()
         self.convs = nn.ModuleList([])
         for ds in dilations:
@@ -405,7 +418,12 @@ class DownBlock(nn.Module):
         pad_left = factor // 2
         pad_right = factor - pad_left
         self.pad = nn.ReplicationPad1d([pad_left, pad_right])
-        self.output_conv = weight_norm(nn.Conv1d(in_channels, out_channels, factor*2, factor))
+        self.interpolation = interpolation
+        self.factor = factor
+        if interpolation == 'conv':
+            self.output_conv = weight_norm(nn.Conv1d(in_channels, out_channels, factor*2, factor))
+        elif interpolation == 'linear':
+            self.output_conv = weight_norm(nn.Conv1d(in_channels, out_channels, 1))
 
     # x: [BatchSize, in_channels, Length]
     # Output: [BatchSize, out_channels, Length]
@@ -416,8 +434,13 @@ class DownBlock(nn.Module):
                 x = F.leaky_relu(x, 0.1)
                 x = c(x)
             x = x + res
-        x = self.pad(x)
-        x = self.output_conv(x)
+        if self.interpolation == 'conv':
+            x = self.pad(x)
+            x = self.output_conv(x)
+        elif self.interpolation == 'linear':
+            x = self.pad(x)
+            x = F.avg_pool1d(x, self.factor*2, self.factor) # approximation of linear interpolation
+            x = self.output_conv(x)
         return x
 
     def remove_weight_norm(self):
@@ -436,7 +459,10 @@ class FilterNet(nn.Module):
                  factors=[5, 4, 4, 4, 3],
                  up_dilations=[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
                  up_kernel_sizes=[3, 7, 11],
+                 up_interpolation='conv',
                  down_dilations=[[1, 2], [4, 8]],
+                 down_kernel_size=3,
+                 down_interpolation='conv',
                  num_harmonics=30,
                  ):
         super().__init__()
@@ -452,7 +478,7 @@ class FilterNet(nn.Module):
         ns = cs[1:] + [channels[0]]
         fs = list(reversed(factors[1:]))
         for c, n, f, in zip(cs, ns, fs):
-            self.downs.append(DownBlock(c, n, f, down_dilations))
+            self.downs.append(DownBlock(c, n, f, down_dilations, down_kernel_size, down_interpolation))
 
         # upsamples
         self.ups = nn.ModuleList([])
@@ -460,7 +486,7 @@ class FilterNet(nn.Module):
         ns = channels[1:] + [channels[-1]]
         fs = factors
         for c, n, f in zip(cs, ns, fs):
-            self.ups.append(UpBlock(c, n, c, f))
+            self.ups.append(UpBlock(c, n, c, f, resblock_type, up_kernel_sizes, up_dilations, up_interpolation))
         self.output_layer = weight_norm(
                 nn.Conv1d(channels[-1], 1, 7, 1, 3, padding_mode='replicate'))
 
@@ -498,7 +524,7 @@ class Decoder(nn.Module):
                  frame_size=960,
                  n_fft=3840,
                  content_channels=192,
-                 speaker_embedding_dim=192,
+                 speaker_embedding_dim=256,
                  pe_internal_channels=512,
                  pe_num_layers=6,
                  source_internal_channels=512,
@@ -508,8 +534,11 @@ class Decoder(nn.Module):
                  filter_factors=[5, 4, 4, 4, 3],
                  filter_resblock_type='1',
                  filter_down_dilations=[[1, 2], [4, 8]],
+                 filter_down_kernel_size=3,
+                 filter_down_interpolation='conv',
                  filter_up_dilations=[[1, 3, 5], [1, 3, 5], [1, 3, 5]],
-                 filter_up_kernel_sizes=[3, 7, 11]):
+                 filter_up_kernel_sizes=[3, 7, 11],
+                 filter_up_interpolation='conv'):
         super().__init__()
         self.frame_size = frame_size
         self.n_fft = n_fft
@@ -536,9 +565,11 @@ class Decoder(nn.Module):
                 filter_factors,
                 filter_up_dilations,
                 filter_up_kernel_sizes,
+                filter_up_interpolation,
                 filter_down_dilations,
+                filter_down_kernel_size,
+                filter_down_interpolation,
                 num_harmonics)
-
     # training pass
     #
     # content: [BatchSize, content_channels, Length]

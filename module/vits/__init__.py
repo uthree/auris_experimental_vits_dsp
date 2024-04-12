@@ -39,7 +39,7 @@ class Vits(L.LightningModule):
         spec = spectrogram(wf, n_fft, frame_size)
 
         # decide crop range
-        crop_range = decide_crop_range(spec.shape[2], 25)
+        crop_range = decide_crop_range(spec.shape[2], 32)
 
         # crop real waveform
         real = crop_waveform(wf, crop_range, frame_size)
@@ -48,7 +48,7 @@ class Vits(L.LightningModule):
         self.toggle_optimizer(opt_g)
 
         # calculate loss
-        dsp_out, fake, lossG, loss_dict = self.generator.train_vits(
+        dsp_out, fake, lossG, loss_dict = self.generator.forward(
                 spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk, lang, crop_range)
 
         loss_dsp = multiscale_stft_loss(dsp_out, real)

@@ -25,7 +25,7 @@ def multiscale_stft_loss(x, y, scales=[16, 32, 64, 128, 256, 512]):
         y_spec[y_spec.isnan()] = 0
         y_spec[y_spec.isinf()] = 0
 
-        loss += (safe_log(x_spec) - safe_log(y_spec)).abs().mean() * 2
+        loss += ((x_spec - y_spec) ** 2).mean() + (safe_log(x_spec) - safe_log(y_spec)).abs().mean()
     return loss / num_scales
 
 
