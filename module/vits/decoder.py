@@ -21,14 +21,16 @@ from .feature_retrieval import match_features
 # min_frequency: float
 # num_harmonics: int
 #
-# Output: [BatchSize, NumHarmonics, Length]
+# Output: [BatchSize, NumHarmonics+1, Length]
 #
 # length = Frames * frame_size
-def oscillate_harmonics(f0,
-                        frame_size=960,
-                        sample_rate=48000,
-                        min_frequency=20.0,
-                        num_harmonics=0):
+def oscillate_harmonics(
+        f0,
+        frame_size=960,
+        sample_rate=48000,
+        num_harmonics=0,
+        min_frequency=20.0
+    ):
     N = f0.shape[0]
     C = num_harmonics + 1
     Lf = f0.shape[2]
@@ -37,13 +39,13 @@ def oscillate_harmonics(f0,
     device = f0.device
 
     # generate frequency of harmonics
-    mul = (torch.arange(C, device=device) + 1).unsqueeze(0).unsqueeze(2).expand(N, C, Lw)
+    mul = (torch.arange(C, device=device) + 1).unsqueeze(0).unsqueeze(2)
 
     # change length to wave's
     fs = F.interpolate(f0, Lw, mode='linear') * mul
 
     # unvoiced / voiced mask
-    uv = (f0 >= min_frequency).to(torch.float)
+    uv = (f0 > min_frequency).to(torch.float)
     uv = F.interpolate(uv, Lw, mode='linear')
 
     # generate harmonics
@@ -167,17 +169,19 @@ class PitchEstimator(nn.Module):
 
 
 class SourceNet(nn.Module):
-    def __init__(self,
-                 content_channels=192,
-                 speaker_embedding_dim=256,
-                 internal_channels=512,
-                 sample_rate=48000,
-                 frame_size=960,
-                 n_fft=3840,
-                 num_harmonics=30,
-                 kernel_size=7,
-                 num_layers=6,
-                 mlp_mul=3):
+    def __init__(
+                self,
+                sample_rate=48000,
+                n_fft=3840,
+                frame_size=960,
+                content_channels=192,
+                speaker_embedding_dim=256,
+                internal_channels=512,
+                num_harmonics=30,
+                kernel_size=7,
+                num_layers=6,
+                mlp_mul=3
+            ):
         super().__init__()
         self.sample_rate = sample_rate
         self.n_fft = n_fft
@@ -220,9 +224,9 @@ class SourceNet(nn.Module):
         amps, kernels = self.amps_and_kernels(x, f0, spk)
 
         # oscillate source signals
-        harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
+        harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, self.num_harmonics)
         amps = F.interpolate(amps, scale_factor=self.frame_size, mode='linear')
-        harmonics = harmonics * amps
+        #harmonics = harmonics * amps
         noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
         source = torch.cat([harmonics, noise], dim=1)
         dsp_out = torch.sum(source, dim=1, keepdim=True)
@@ -573,31 +577,35 @@ class Decoder(nn.Module):
         self.sample_rate = sample_rate
         self.num_harmonics = num_harmonics
         self.pitch_estimator = PitchEstimator(
-                content_channels,
-                speaker_embedding_dim,
-                pe_internal_channels,
-                num_layers=pe_num_layers)
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                internal_channels=pe_internal_channels,
+                num_layers=pe_num_layers
+                )
         self.source_net = SourceNet(
-                content_channels,
-                speaker_embedding_dim,
-                source_internal_channels,
-                source_num_layers,
-                frame_size,
-                n_fft,
-                num_harmonics)
+                sample_rate=sample_rate,
+                frame_size=frame_size,
+                n_fft=n_fft,
+                num_harmonics=num_harmonics,
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                internal_channels=source_internal_channels,
+                num_layers=source_num_layers,
+                )
         self.filter_net = FilterNet(
-                content_channels,
-                speaker_embedding_dim,
-                filter_channels,
-                filter_resblock_type,
-                filter_factors,
-                filter_up_dilations,
-                filter_up_kernel_sizes,
-                filter_up_interpolation,
-                filter_down_dilations,
-                filter_down_kernel_size,
-                filter_down_interpolation,
-                num_harmonics)
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                channels=filter_channels,
+                resblock_type=filter_resblock_type,
+                factors=filter_factors,
+                up_dilations=filter_up_dilations,
+                up_kernel_sizes=filter_up_kernel_sizes,
+                up_interpolation=filter_up_interpolation,
+                down_dilations=filter_down_dilations,
+                down_kernel_size=filter_down_kernel_size,
+                down_interpolation=filter_down_interpolation,
+                num_harmonics=num_harmonics
+                )
     # training pass
     #
     # content: [BatchSize, content_channels, Length]
@@ -640,4 +648,5 @@ class Decoder(nn.Module):
 
         # filter network
         output = self.filter_net(content, f0, spk, source)
+        output = source[:, 0]
         return output
