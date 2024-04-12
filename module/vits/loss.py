@@ -25,9 +25,23 @@ def multiscale_stft_loss(x, y, scales=[16, 32, 64, 128, 256, 512]):
         y_spec[y_spec.isnan()] = 0
         y_spec[y_spec.isinf()] = 0
 
-        loss += ((x_spec - y_spec) ** 2).mean() + (safe_log(x_spec) - safe_log(y_spec)).abs().mean()
+        loss += (safe_log(x_spec) - safe_log(y_spec)).abs().mean()
     return loss / num_scales
 
+
+global mel_spectrogram_modules
+mel_spectrogram_modules = {}
+def mel_spectrogram_loss(x, y, sample_rate=48000, n_fft=2048, hop_length=512, power=2.0):
+    device = x.device
+    if device not in mel_spectrogram_modules:
+        mel_spectrogram_modules[device] = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, n_fft=n_fft, hop_length=hop_length, power=power).to(device)
+    mel_spectrogram = mel_spectrogram_modules[device]
+
+    x_mel = mel_spectrogram(x)
+    y_mel = mel_spectrogram(y)
+
+    loss = F.l1_loss(x_mel, y_mel)
+    return loss
 
 # 1 = fake, 0 = real
 def discriminator_adversarial_loss(real_outputs, fake_outputs):

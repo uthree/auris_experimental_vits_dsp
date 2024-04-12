@@ -7,7 +7,7 @@ import lightning as L
 
 from .generator import Generator
 from .discriminator import Discriminator
-from .loss import multiscale_stft_loss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
+from .loss import mel_spectrogram_loss, generator_adversarial_loss, discriminator_adversarial_loss, feature_matching_loss
 from .crop import crop_features, crop_waveform, decide_crop_range
 from .spectrogram import spectrogram
 
@@ -51,14 +51,14 @@ class Vits(L.LightningModule):
         dsp_out, fake, lossG, loss_dict = self.generator.forward(
                 spec, spec_len, phoneme, phoneme_len, lm_feat, lm_feat_len, f0, spk, lang, crop_range)
 
-        loss_dsp = multiscale_stft_loss(dsp_out, real)
-        loss_stft = multiscale_stft_loss(fake, real)
+        loss_dsp = mel_spectrogram_loss(dsp_out, real)
+        loss_mel = mel_spectrogram_loss(fake, real)
         logits_fake, fmap_fake = self.discriminator(fake)
         _, fmap_real = self.discriminator(real)
         loss_feat = feature_matching_loss(fmap_real, fmap_fake)
         loss_adv = generator_adversarial_loss(logits_fake)
 
-        lossG += loss_stft * 45.0 + loss_dsp + loss_feat + loss_adv
+        lossG += loss_mel * 45.0 + loss_dsp + loss_feat + loss_adv
         self.manual_backward(lossG)
         opt_g.step()
         opt_g.zero_grad()
@@ -83,7 +83,7 @@ class Vits(L.LightningModule):
         self.untoggle_optimizer(opt_d)
 
         # write log
-        loss_dict['Spectrogram'] = loss_stft.item()
+        loss_dict['Mel'] = loss_mel.item()
         loss_dict['Generator Adversarial'] = loss_adv.item()
         loss_dict['DSP'] = loss_dsp.item()
         loss_dict['Feature Matching'] = loss_feat.item()

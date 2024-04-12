@@ -179,6 +179,11 @@ class SourceNet(nn.Module):
                  num_layers=6,
                  mlp_mul=3):
         super().__init__()
+        self.sample_rate = sample_rate
+        self.n_fft = n_fft
+        self.frame_size = frame_size
+        self.num_harmonics = num_harmonics
+
         self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
         self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
         self.f0_input = nn.Conv1d(1, internal_channels, 1)
@@ -192,7 +197,10 @@ class SourceNet(nn.Module):
     # x: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
     # spk: [BatchSize, speaker_embedding_dim, 1]
-    def forward(self, x, f0, spk):
+    # Outputs:
+    #   amps: [BatchSize, num_harmonics+1, Length * frame_size]
+    #   kernels: [BatchSize, n_fft //2 + 1, Length]
+    def amps_and_kernels(self, x, f0, spk):
         x = self.content_input(x) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
         x = self.input_norm(x)
         x = self.mid_layers(x)
@@ -200,6 +208,24 @@ class SourceNet(nn.Module):
         amps = F.elu(self.to_amps(x)) + 1
         kernels = F.elu(self.to_kernels(x)) + 1
         return amps, kernels
+
+
+    # x: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # Outputs:
+    #   dsp_out: [BatchSize, 1, Length * frame_size]
+    #   source: [BatchSize, 1, Length * frame_size]
+    def forward(self, x, f0, spk):
+        amps, kernels = self.amps_and_kernels(x, f0, spk)
+
+        # oscillate source signals
+        harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
+        noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
+        source = torch.cat([harmonics, noise], dim=1)
+        dsp_out = torch.sum(source, dim=1, keepdim=True)
+
+        return dsp_out, source
 
 
 # HiFi-GAN's ResBlock1
@@ -583,17 +609,10 @@ class Decoder(nn.Module):
     def forward(self, content, f0, spk):
         # estimate pitch 
         f0_logits = self.pitch_estimator(content, spk)
-        
-        # estimate amplitudes each harmonics, noise filter kernels
-        amps, kernels = self.source_net(content, f0, spk)
 
-        # oscillate source signals
-        harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
-        noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
-        source = torch.cat([harmonics, noise], dim=1)
-
-        # dsp output
-        dsp_out = source.sum(dim=1)
+        # source net
+        dsp_out, source = self.source_net(content, f0, spk)
+        dsp_out = dsp_out.squeeze(1)
 
         # GAN output
         output = self.filter_net(content, f0, spk, source)
@@ -615,12 +634,7 @@ class Decoder(nn.Module):
         if reference is not None:
             content = match_features(content, reference, k, alpha, metrics)
 
-        amps, kernels = self.source_net(content, f0, spk)
-
-        # oscillate source signals
-        harmonics = oscillate_harmonics(f0, self.frame_size, self.sample_rate, num_harmonics=self.num_harmonics)
-        noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
-        source = torch.cat([harmonics, noise], dim=1)
+        dsp_out, source = self.source_net(content, f0, spk)
 
         # filter network
         output = self.filter_net(content, f0, spk, source)
