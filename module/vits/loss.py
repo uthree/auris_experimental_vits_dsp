@@ -31,7 +31,7 @@ def multiscale_stft_loss(x, y, scales=[16, 32, 64, 128, 256, 512]):
 
 global mel_spectrogram_modules
 mel_spectrogram_modules = {}
-def mel_spectrogram_loss(x, y, sample_rate=48000, n_fft=2048, hop_length=512, power=2.0):
+def mel_spectrogram_loss(x, y, sample_rate=48000, n_fft=2048, hop_length=512, power=2.0, log=True):
     device = x.device
     if device not in mel_spectrogram_modules:
         mel_spectrogram_modules[device] = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, n_fft=n_fft, hop_length=hop_length, power=power).to(device)
@@ -39,6 +39,14 @@ def mel_spectrogram_loss(x, y, sample_rate=48000, n_fft=2048, hop_length=512, po
 
     x_mel = mel_spectrogram(x)
     y_mel = mel_spectrogram(y)
+    if log:
+        x_mel = safe_log(x_mel)
+        y_mel = safe_log(y_mel)
+
+        x_mel[x_mel.isnan()] = 0
+        x_mel[x_mel.isinf()] = 0
+        y_mel[y_mel.isnan()] = 0
+        y_mel[y_mel.isinf()] = 0
 
     loss = F.l1_loss(x_mel, y_mel)
     return loss
