@@ -13,6 +13,7 @@ from .text_encoder import TextEncoder
 from .speaker_embedding import SpeakerEmbedding
 from .duration_predictors import DurationPredictor, StochasticDurationPredictor
 from .crop import crop_features
+from module.utils.energy_estimation import estimate_energy_from_spectrogram
 
 from .monotonic_align import maximum_path
 
@@ -180,22 +181,25 @@ class Generator(nn.Module):
 
         # decoder losses
         z_sliced = crop_features(z, crop_range)
+        energy = estimate_energy_from_spectrogram(crop_features(spec, crop_range))
         f0_sliced = crop_features(f0, crop_range)
-        f0_logit, dsp_out, fake = self.decoder(z_sliced, f0_sliced, spk)
+        f0_logits, estimated_energy, dsp_out, fake = self.decoder(z_sliced, f0_sliced, energy, spk)
 
         # pitch estimation loss
-        f0_label = self.decoder.pitch_estimator.freq2id(f0_sliced).squeeze(1)
-        loss_pe = pitch_estimation_loss(f0_logit, f0_label)
+        f0_label = self.decoder.pitch_energy_estimator.freq2id(f0_sliced).squeeze(1)
+        loss_pe = pitch_estimation_loss(f0_logits, f0_label)
+        loss_ee = F.l1_loss(torch.log(estimated_energy + 1e-6), torch.log(energy + 1e-6))
 
         loss_dict = {
                 "StochasticDurationPredictor": loss_sdp.item(),
                 "DurationPredictor": loss_dp.item(),
-                "PitchEstimator": loss_pe.item(),
+                "Pitch Estimation": loss_pe.item(),
+                "Energy Estimation": loss_ee.item(),
                 "KL Divergence": loss_kl.item(),
                 "Audio Encoder": loss_ae.item()
                 }
 
-        lossG = loss_sdp + loss_dp + loss_pe + loss_kl + loss_ae
+        lossG = loss_sdp + loss_dp + loss_pe + loss_ee + loss_kl + loss_ae
 
         return dsp_out, fake, lossG, loss_dict
 
