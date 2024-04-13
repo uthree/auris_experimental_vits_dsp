@@ -212,7 +212,8 @@ class SourceNet(nn.Module):
     #   amps: [BatchSize, num_harmonics+1, Length * frame_size]
     #   kernels: [BatchSize, n_fft //2 + 1, Length]
     def amps_and_kernels(self, x, f0, energy, spk):
-        x = self.content_input(x) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6)) + self.energy_input(energy)
+        x = self.content_input(x) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
+        x = x * self.energy_input(energy)
         x = self.input_norm(x)
         x = self.mid_layers(x)
         x = self.output_norm(x)
@@ -536,7 +537,8 @@ class FilterNet(nn.Module):
     # source: [BatchSize, num_harmonics+2, Length(Waveform)]
     # Output: [Batchsize, 1, Length * frame_size]
     def forward(self, content, f0, energy, spk, source):
-        x = self.content_input(content) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6)) + self.energy_input(energy)
+        x = self.content_input(content) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
+        x = x * self.energy_input(energy)
 
         skips = []
         for down in self.downs:
