@@ -13,8 +13,8 @@ class WNLayer(nn.Module):
         super().__init__()
         self.speaker_in = weight_norm(
                 nn.Conv1d(
-                    speaker_embedding_dim,
-                    hidden_channels, 1))
+                    speaker_embedding_dim ,
+                    hidden_channels * 2, 1))
         padding = int((kernel_size * dilation - dilation) / 2)
         self.conv = weight_norm(
                 nn.Conv1d(
