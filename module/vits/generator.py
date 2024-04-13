@@ -199,7 +199,7 @@ class Generator(nn.Module):
                 "Audio Encoder": loss_ae.item()
                 }
 
-        lossG = loss_sdp + loss_dp + loss_pe + loss_ee + loss_kl + loss_ae
+        lossG = loss_sdp + loss_dp + loss_pe * 45.0 + loss_ee * 45.0 + loss_kl + loss_ae
 
         return dsp_out, fake, lossG, loss_dict
 
