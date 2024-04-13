@@ -199,10 +199,9 @@ class Generator(nn.Module):
                 "Audio Encoder": loss_ae.item()
                 }
 
-        lossG = loss_sdp + loss_dp + loss_pe * 45.0 + loss_ee * 45.0 + loss_kl + loss_ae
+        lossG = loss_sdp + loss_dp + loss_pe + loss_ee + loss_kl + loss_ae
 
         return dsp_out, fake, lossG, loss_dict
-
 
     @torch.no_grad()
     def text_to_speech(
@@ -215,7 +214,8 @@ class Generator(nn.Module):
             lang,
             noise_scale=0.6,
             max_frames=2000,
-            use_sdp=True
+            use_sdp=True,
+            duration_scale=1.0
             ):
         # encode text
         text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, lang)
@@ -224,9 +224,10 @@ class Generator(nn.Module):
         # predict duration
         if use_sdp:
             log_duration = self.stochastic_duration_predictor(text_encoded, text_mask, g=spk, reverse=True)
-            duration = torch.exp(log_duration)
         else:
-            duration = self.duration_predictor(text_encoded, text_mask, spk)
+            log_duration = self.duration_predictor(text_encoded, text_mask, spk)
+        duration = torch.exp(log_duration)
+        duration = duration * text_mask * duration_scale
         duration = torch.ceil(duration)
         spec_len = torch.clamp_min(torch.sum(duration, dim=(1, 2)), 1).long()
         spec_len = torch.clamp_max(spec_len, max_frames)
