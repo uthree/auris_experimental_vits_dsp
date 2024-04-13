@@ -162,7 +162,6 @@ class Generator(nn.Module):
         m_p = torch.matmul(MAS_path.squeeze(1), m_p.mT).mT
         logs_p = torch.matmul(MAS_path.squeeze(1), logs_p.mT).mT
         loss_kl = kl_divergence_loss(z_p, logs_q, m_p, logs_p, spec_mask)
-
         # calculate audio encoder loss
         z_ae, m_ae, logs_ae, _ = self.audio_encoder(spec, spec_len)
         loss_ae = (m_ae - m_p.detach()).abs().mean() + (logs_ae - logs_p.detach()).abs().mean()
@@ -229,9 +228,11 @@ class Generator(nn.Module):
         duration = torch.exp(log_duration)
         duration = duration * text_mask * duration_scale
         duration = torch.ceil(duration)
+
         spec_len = torch.clamp_min(torch.sum(duration, dim=(1, 2)), 1).long()
         spec_len = torch.clamp_max(spec_len, max_frames)
         spec_mask = sequence_mask(spec_len).unsqueeze(1).to(text_mask.dtype)
+
         MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1)
         MAS_path = generate_path(duration, MAS_node_mask).float()
 
