@@ -34,8 +34,7 @@ class WNLayer(nn.Module):
     # Output: [BatchSize, hidden_channels, Length]
     def forward(self, x, x_mask, g):
         res = x
-        x = x + self.speaker_in(g)
-        x = self.conv(x)
+        x = self.conv(x) + self.speaker_in(g)
         x_0, x_1 = torch.chunk(x, 2, dim=1)
         x = torch.tanh(x_0) * torch.sigmoid(x_1)
         x = self.out(x)
