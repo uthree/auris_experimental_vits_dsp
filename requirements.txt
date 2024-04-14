@@ -12,5 +12,5 @@ cython
 pyopenjtalk
 tensorboard
 g2p_en
-fafetensors
+safetensors
 lightning
