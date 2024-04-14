@@ -71,8 +71,8 @@ class Infer:
                 phoneme_len,
                 lm_feat,
                 lm_feat_len,
-                spk,
                 lang,
+                spk,
                 )
         return wf
 

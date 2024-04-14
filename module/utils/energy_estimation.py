@@ -8,5 +8,5 @@ import torch.nn.functional as F
 # output:
 #   energy: [BatchSize, 1, Length]
 def estimate_energy(spec):
-    return spec.mean(dim=1, keepdim=True)
-
+    fft_bin = spec.shape[1]
+    return spec.max(dim=1, keepdim=True).values / fft_bin

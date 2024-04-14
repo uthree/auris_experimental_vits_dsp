@@ -7,7 +7,7 @@ class JapaneseExtractor(PhoneticExtractor):
         super().__init__()
 
     def g2p(self, text):
-        return pyopenjtalk.g2p(text).split(" ")
+        return ['pau'] + pyopenjtalk.g2p(text).split(" ")
 
     def possible_phonemes(self):
         return [' ', 'pau', 'I', 'N', 'U', 'a', 'b', 'by', 'ch', 'cl', 'd',

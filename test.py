@@ -1,9 +1,11 @@
 # test feature retrieval
 import torch
-from module.vits.feature_retrieval import match_features
+from module.vits.flow import Flow
 
-source = torch.randn(2, 192, 100)
-reference = torch.randn(2, 192, 100)
-
-output = match_features(source, reference)
-print(output.shape)
+flow = Flow()
+z = torch.randn(2, 192, 100)
+g = torch.randn(2, 256, 1)
+z_mask = torch.ones(2, 1, 100)
+z_p = flow(z, z_mask, g)
+z_recon = flow(z_p, z_mask, g, reverse=True)
+print((z_recon - z).abs())
