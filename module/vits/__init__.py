@@ -39,7 +39,7 @@ class Vits(L.LightningModule):
         spec = spectrogram(wf, n_fft, frame_size)
 
         # decide crop range
-        crop_range = decide_crop_range(spec.shape[2], 32)
+        crop_range = decide_crop_range(spec.shape[2], self.config.segment_size)
 
         # crop real waveform
         real = crop_waveform(wf, crop_range, frame_size)

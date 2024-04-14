@@ -1,5 +1,6 @@
 {
     "vits": {
+        "segment_size": 32,
         "generator": {
             "decoder": {
                 "sample_rate": 48000,
@@ -160,7 +161,7 @@
         "data_module": {
             "cache_dir": "dataset_cache",
             "metadata": "models/metadata.json",
-            "batch_size": 8,
+            "batch_size": 2,
             "num_workers": 7
         },
         "trainer": {

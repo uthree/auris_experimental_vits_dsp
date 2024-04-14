@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .duration_predictors import StochasticDurationPredictor, DurationPredictor
-from .prosody_predictor import ProsodyPredictor
 from .monotonic_align import maximum_path
 from .text_encoder import TextEncoder
 from .flow import Flow
@@ -54,14 +53,6 @@ def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
     return l
 
 
-def pitch_estimation_loss(logits, label):
-    num_classes = logits.shape[1]
-    device = logits.device
-    weight = torch.ones(num_classes, device=device)
-    weight[0] = 1e-2
-    return F.cross_entropy(logits, label, weight)
-
-
 # run Monotonic Alignment Search (MAS).
 # MAS associates phoneme sequences with sounds.
 # 
@@ -100,7 +91,6 @@ class PriorEncoder(nn.Module):
         ):
         super().__init__()
         self.flow = Flow(**config.flow)
-        self.prosody_predictor = ProsodyPredictor(**config.prosody_predictor)
         self.text_encoder = TextEncoder(**config.text_encoder)
         self.duration_predictor = DurationPredictor(**config.duration_predictor)
         self.stochastic_duration_predictor = StochasticDurationPredictor(**config.stochastic_duration_predictor)
@@ -133,20 +123,13 @@ class PriorEncoder(nn.Module):
         logw_x = self.duration_predictor(text_encoded, text_mask, spk)
         loss_dp = torch.sum(((logw_x - logw_y) ** 2) * text_mask) / torch.sum(text_mask)
 
-        f0_label = self.prosody_predictor.freq2id(f0).squeeze(1)
-        f0_logits, energy_pred = self.prosody_predictor(z_p, spk)
-        loss_pe = pitch_estimation_loss(f0_logits, f0_label)
-        loss_ee = (energy_pred - energy).abs().mean()
-
         loss_dict = {
             "StochasticDurationPredictor": loss_sdp.item(),
             "DurationPredictor": loss_dp.item(),
-            "Pitch Estimation": loss_pe.item(),
-            "Energy Estimation": loss_ee.item(),
             "KL Divergence": loss_kl.item(),
         }
 
-        lossPrior = loss_sdp + loss_dp + loss_pe * 10.0 + loss_ee * 10.0 + loss_kl
+        lossPrior = loss_sdp + loss_dp + loss_kl
         return lossPrior, loss_dict
     
     def text_to_speech(self, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, spk, noise_scale=0.6, max_frames=2000, use_sdp=True, duration_scale=1.0):
@@ -180,10 +163,7 @@ class PriorEncoder(nn.Module):
         if z_p.shape[2] > max_frames:
             z_p = z_p[:, :, :max_frames]
 
-        # predict prosody
-        f0, energy = self.prosody_predictor.infer(z_p, spk)
-
         # add speaker infomation
         z = self.flow(z_p, spec_mask, spk, reverse=True)
 
-        return z, f0, energy
+        return z
