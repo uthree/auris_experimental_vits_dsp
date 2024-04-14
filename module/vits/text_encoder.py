@@ -22,7 +22,7 @@ class TextEncoder(nn.Module):
         super().__init__()
         self.lm_proj = nn.Linear(lm_dim, internal_channels)
         self.phoneme_embedding = nn.Embedding(num_phonemes, internal_channels)
-        self.language_embedding = nn.Embedding(num_phonemes, internal_channels)
+        self.language_embedding = nn.Embedding(num_languages, internal_channels)
         self.transformer = RelativePositionTransformerDecoder(
                 internal_channels,
                 internal_channels * 4,
