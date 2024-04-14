@@ -8,7 +8,7 @@ def process_category(path: Path, category, processor: Preprocessor, speaker_name
     print(f"Ppocessing {str(path)}")
     audio_dir = path / "wav24kHz16bit"
     transcription_path = path / "transcripts_utf8.txt"
-    with open(transcription_path) as f:
+    with open(transcription_path, encoding='utf-8') as f:
         transcription_text = f.read()
 
     counter = 0
