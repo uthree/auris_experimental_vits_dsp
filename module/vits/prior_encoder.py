@@ -129,8 +129,8 @@ class PriorEncoder(nn.Module):
             "KL Divergence": loss_kl.item(),
         }
 
-        lossPrior = loss_sdp + loss_dp + loss_kl
-        return lossPrior, loss_dict
+        loss = loss_sdp + loss_dp + loss_kl
+        return loss, loss_dict
     
     def text_to_speech(self, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, spk, noise_scale=0.6, max_frames=2000, use_sdp=True, duration_scale=1.0):
         # encode text
