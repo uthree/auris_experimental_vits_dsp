@@ -78,7 +78,7 @@ elif args.task == 'tts':
     # inference
     for path in inputs:
         print(f"Inferencing {path}")
-        t = json.load(open(path))
+        t = json.load(open(path, encoding='utf-8'))
         for k, v in zip(t.keys(), t.values()):
             print(f"  Inferencing {k}")
             wf = infer.text_to_speech(**v).squeeze(1).cpu()

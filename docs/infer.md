@@ -28,6 +28,6 @@ mkdir text_inputs # ここに台本を入れる
 
 2. 推論する。
 ```sh
-python3 infer.pt -c config/base.json -i text_inputs -t tts
+python3 infer.py -c config/base.json -i text_inputs -t tts
 ```
 

@@ -34,4 +34,4 @@ class Config:
 
 
 def load_json_file(path):
-    return Config(**json.load(open(path)))
+    return Config(**json.load(open(path, encoding='utf-8')))
