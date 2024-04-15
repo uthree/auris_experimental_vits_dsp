@@ -22,8 +22,6 @@ def generate_path(duration, mask):
     duration: [b, 1, t_x]
     mask: [b, 1, t_y, t_x]
     """
-    device = duration.device
-
     b, _, t_y, t_x = mask.shape
     cum_duration = torch.cumsum(duration, -1)
 
@@ -79,7 +77,7 @@ def search_path(z_p, m_p, logs_p, text_mask, spec_mask, mas_noise_scale=0.1):
             neg_cent += eps
 
         # mask unnecessary nodes, run D.P.
-        MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1) # [b, 1, t] * [b, t', 1] = [b, t', t]
+        MAS_node_mask = text_mask.unsqueeze(2) * spec_mask.unsqueeze(-1) # [b, 1, 't, t]
         MAS_path = maximum_path(neg_cent, MAS_node_mask.squeeze(1)).unsqueeze(1).detach() # [b, 1, 't, t]
     return MAS_path
 

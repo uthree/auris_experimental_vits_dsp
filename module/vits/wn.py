@@ -43,7 +43,7 @@ class WNLayer(nn.Module):
         skip = skip * x_mask
         return out, skip
 
-    def remove_weight_norm(self, x):
+    def remove_weight_norm(self):
         remove_weight_norm(self.speaker_in)
         remove_weight_norm(self.conv)
         remove_weight_norm(self.out)

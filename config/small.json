@@ -161,7 +161,7 @@
         "data_module": {
             "cache_dir": "dataset_cache",
             "metadata": "models/metadata.json",
-            "batch_size": 2,
+            "batch_size": 12,
             "num_workers": 7
         },
         "trainer": {
