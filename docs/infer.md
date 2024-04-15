@@ -31,3 +31,8 @@ mkdir text_inputs # ここに台本を入れる
 python3 infer.py -c config/base.json -i text_inputs -t tts
 ```
 
+### 設定項目の詳細
+- `speaker`: 話者名
+- `text`: 読み上げるテキスト
+- `style_text`: スタイルテキスト。任意。つけない場合は`text`と同じ内容になる。
+- `language`: 言語
