@@ -31,7 +31,7 @@ def multiscale_stft_loss(x, y, scales=[16, 32, 64, 128, 256, 512]):
 
 global mel_spectrogram_modules
 mel_spectrogram_modules = {}
-def mel_spectrogram_loss(x, y, sample_rate=48000, n_fft=2048, hop_length=512, power=2.0, log=False):
+def mel_spectrogram_loss(x, y, sample_rate=48000, n_fft=2048, hop_length=512, power=2.0, log=True):
     device = x.device
     if device not in mel_spectrogram_modules:
         mel_spectrogram_modules[device] = torchaudio.transforms.MelSpectrogram(sample_rate=sample_rate, n_fft=n_fft, hop_length=hop_length, power=power).to(device)
@@ -77,6 +77,7 @@ def duration_discriminator_adversarial_loss(real_output, fake_output, text_mask)
     loss = (((fake_output - 1) ** 2) * text_mask).sum() / text_mask.sum()
     loss += ((real_output ** 2) * text_mask).sum() / text_mask.sum()
     return loss
+
 
 def duration_generator_adversarial_loss(fake_output, text_mask):
     loss = ((fake_output ** 2) * text_mask).sum() / text_mask.sum()

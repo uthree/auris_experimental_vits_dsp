@@ -1,11 +1,15 @@
-# test feature retrieval
-import torch
-from module.vits.flow import Flow
+from music21 import *
 
-flow = Flow()
-z = torch.randn(2, 192, 100)
-g = torch.randn(2, 256, 1)
-z_mask = torch.ones(2, 1, 100)
-z_p = flow(z, z_mask, g)
-z_recon = flow(z_p, z_mask, g, reverse=True)
-print((z_recon - z).abs())
+file_path = "example/score_inputs/test.musicxml"
+
+# MusicXMLファイルを読み込む
+score = converter.parse(file_path)
+
+for element in score.recurse():
+    if isinstance(element, note.Note):
+        print(element.lyrics[0].text)
+        print("Note:", element.nameWithOctave)
+    elif isinstance(element, chord.Chord):
+        print("Chord:", ' '.join(n.nameWithOctave for n in element.pitches))
+    elif isinstance(element, stream.Measure):
+        print("Measure:", element.number)
