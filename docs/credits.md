@@ -8,6 +8,9 @@ MITライセンスのリポジトリからソースコードをコピペした�
 - [transformer.py](../module/vits/transformer.py) : [VITS2](https://github.com/daniilrobnikov/vits2/blob/main/model/transformer.py) から引用、改変。
 - [normalization.py](../module/vits/normalization.py) : [VITS2](https://github.com/daniilrobnikov/vits2/blob/main/model/normalization.py) から一部引用。
 
+## 学習済みモデル
+- [rinna_roberta.py](../module/language_model/rinna_roberta.py) : [rinna/japanese-roberta-base](https://huggingface.co/rinna/japanese-roberta-base) を使用。
+
 ## 参考文献
 
 ### 参考にした記事
