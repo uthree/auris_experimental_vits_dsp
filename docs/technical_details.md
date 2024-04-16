@@ -9,9 +9,12 @@
 ## モデルアーキテクチャ
 VITSをベースに改造するという形になる。  
 具体的には、
-- DecoderをDSP+HnNSF-HiFiGANに変更
-- Text Encoderに言語モデルの特徴量を参照する機能をつけ、感情などを読み取れるように。
-- Feature Retrievalを追加し話者の再現性を向上させる  
+- DecoderをDSP+HnNSF-HiFiGANに変更。DSP機能を取り入れることで、外部からピッチを制御可能に。これにより歌声合成ができる。
+- Text Encoderに言語モデルの特徴量を参照する機能をつけ、感情や文脈などを読み取れるように。
+- Feature Retrievalを追加し話者の再現性を向上させる
+- VITS2のDuration Discriminatorを追加
+- Discriminatorのうち、MultiScaleDiscriminatorをMultiResolutionalDiscriminatorに変更。スペクトログラムのオーバースムージングを回避する。
+
 等の改造があげられる。
 
 ### 全体の構造
@@ -21,5 +24,3 @@ VITSの構造とほぼ同じ。
 ### デコーダー
 ![](./images/auris_decoder.png)
 DDSPのような加算シンセサイザによる音声合成の後にHiFi-GANに似た構造のフィルターをかけるハイブリッド構造。  
-ピッチ情報を外部から与えることで、ピッチを制御することも可能。  
-音素列、Duration、ピッチを外部から与えることで、歌声生成を可能にする。  
