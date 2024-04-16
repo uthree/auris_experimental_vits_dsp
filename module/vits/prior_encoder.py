@@ -121,6 +121,10 @@ class PriorEncoder(nn.Module):
         logw_x = self.duration_predictor(text_encoded, text_mask, spk)
         loss_dp = torch.sum(((logw_x - logw_y) ** 2) * text_mask) / torch.sum(text_mask)
 
+        # predict duration
+        fake_log_duration = self.stochastic_duration_predictor(text_encoded, text_mask, g=spk, reverse=True)
+        real_log_duration = logw_y
+
         loss_dict = {
             "StochasticDurationPredictor": loss_sdp.item(),
             "DurationPredictor": loss_dp.item(),
@@ -128,7 +132,7 @@ class PriorEncoder(nn.Module):
         }
 
         loss = loss_sdp + loss_dp + loss_kl
-        return loss, loss_dict
+        return loss, loss_dict, (text_encoded.detach(), text_mask, fake_log_duration, real_log_duration)
     
     def text_to_speech(self, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, spk, noise_scale=0.6, max_frames=2000, use_sdp=True, duration_scale=1.0):
         # encode text

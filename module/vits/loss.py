@@ -73,6 +73,16 @@ def generator_adversarial_loss(fake_outputs):
     return loss / n
 
 
+def duration_discriminator_adversarial_loss(real_output, fake_output, text_mask):
+    loss = (((fake_output - 1) ** 2) * text_mask).sum() / text_mask.sum()
+    loss += ((real_output ** 2) * text_mask).sum() / text_mask.sum()
+    return loss
+
+def duration_generator_adversarial_loss(fake_output, text_mask):
+    loss = ((fake_output ** 2) * text_mask).sum() / text_mask.sum()
+    return loss
+
+    
 def feature_matching_loss(fmap_real, fmap_fake):
     loss = 0
     n = min(len(fmap_real), len(fmap_fake))

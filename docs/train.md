@@ -34,3 +34,8 @@ tensorboard --logdir lightning_logs
 ```
 をscreen等を用いてバックグラウンドで実行する。  
 これが実行されている間はtensorboardのサーバーが動いているので、ブラウザで`http://localhost:6006`にアクセスすると進捗を見ることができる。
+
+## FAQ
+- `models/metadata.json`は何のファイルですか？  
+    話者名と話者IDを関連付けるためのメタデータが含まれるJSONファイルです。  
+    データセットの前処理を行うと自動的に生成されます。

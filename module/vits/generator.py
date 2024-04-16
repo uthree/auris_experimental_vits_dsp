@@ -59,7 +59,7 @@ class Generator(nn.Module):
         spk = self.speaker_embedding(spk)
         z, m_q, logs_q, spec_mask = self.posterior_encoder.forward(spec, spec_len, spk)
         energy = estimate_energy(spec)
-        loss_prior, loss_dict_prior = self.prior_encoder.forward(spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, f0, energy, spk)
+        loss_prior, loss_dict_prior, (text_encoded, text_mask, fake_log_duration, real_log_duration) = self.prior_encoder.forward(spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, f0, energy, spk)
         
         z_crop = crop_features(z, crop_range)
         f0_crop = crop_features(f0, crop_range)
@@ -69,7 +69,7 @@ class Generator(nn.Module):
         loss_dict = (loss_dict_decoder | loss_dict_prior) # merge dict
         loss = loss_prior + loss_decoder
 
-        return dsp_out, fake, loss, loss_dict
+        return loss, loss_dict, (text_encoded, text_mask, fake_log_duration, real_log_duration, spk.detach(), dsp_out, fake)
 
     @torch.no_grad()
     def text_to_speech(

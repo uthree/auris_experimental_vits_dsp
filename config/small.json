@@ -129,6 +129,11 @@
                 "num_layers": 4
             }
         },
+        "duration_discriminator": {
+            "content_channels": 96,
+            "speaker_embedding_dim": 128,
+            "num_layers": 3
+        },
         "optimizer": {
             "lr": 1e-4,
             "betas": [
