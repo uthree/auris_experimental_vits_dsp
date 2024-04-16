@@ -5,7 +5,7 @@
 ## プリセット
 本リポジトリにはコンフィグの設定例としていくつかのコンフィグファイルを用意しています。
 - [small](../config/small.json) : 最小規模の構成。動作確認実験のためのもの。
-- [base](../config/base.json) (Comming Soon) : HiFi-GANのV1モデルに相当する規模のもの。おそらく実用的な性能が出る。
+- [base](../config/base.json) : HiFi-GANのV1モデル/VITSに相当する規模のもの。おそらく実用的な性能が出る。
 - [large](../config/large.json) (Comming Soon?) : baseから次元数を増やしたモデル。大規模な計算震源が必要かも。
 
 ## パラメータの意味
