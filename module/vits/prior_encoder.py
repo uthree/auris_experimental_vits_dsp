@@ -60,7 +60,7 @@ def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
 # text_mask: [b, 1, t]
 # spec_mask: [b, 1, t']
 # Output: [b, 1, t', t]
-def search_path(z_p, m_p, logs_p, text_mask, spec_mask, mas_noise_scale=0.01):
+def search_path(z_p, m_p, logs_p, text_mask, spec_mask, mas_noise_scale=0.0):
     with torch.no_grad():
         # calculate nodes
         # b = batch size, d = feature dim, t = text length, t' = spec length
