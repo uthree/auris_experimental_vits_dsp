@@ -1,7 +1,16 @@
 # 推論方法
 このドキュメントでは、推論方法について記す
 
-## 音声再構築タスク
+## gradioによるUIを使った推論
+webuiを起動する。
+```sh
+python3 infer_webui.py
+```
+`localhost:7860` にブラウザでアクセスする。
+
+## CUIによる推論
+
+### 音声再構築タスク
 入力された音声を再構築するタスク。VAEの性能確認用。  
 
 1. 音声ファイルが複数入ったディレクトリを用意する
@@ -17,7 +26,7 @@ python3 infer.py -c config/base.json -i audio_inputs -t recon -s jvs001
 
 3. `outputs/`内に出力ファイルが生成されるので、確認する。
 
-## 音声読み上げ(TTS)
+### 音声読み上げ(TTS)
 テキストを読み上げるタスク。
 
 1. 台本フォルダを用意する。  
@@ -31,7 +40,7 @@ mkdir text_inputs # ここに台本を入れる
 python3 infer.py -c config/base.json -i text_inputs -t tts
 ```
 
-### 設定項目の詳細
+#### 設定項目の詳細
 - `speaker`: 話者名
 - `text`: 読み上げるテキスト
 - `style_text`: スタイルテキスト。任意。つけない場合は`text`と同じ内容になる。

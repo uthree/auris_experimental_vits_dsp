@@ -15,10 +15,10 @@ class G2PProcessor:
         #self.extractors['en'] = EnglishExtractor()
         # ---
 
+        self.languages = []
         phoneme_vocabs = []
         for mod in self.extractors.values():
             phoneme_vocabs += mod.possible_phonemes()
-        self.languages = ['unknown']
         self.languages += self.extractors.keys()
         self.phoneme_vocabs = ['<pad>'] + phoneme_vocabs
 
