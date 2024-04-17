@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from module.g2p import G2PProcessor
 
 
 # create metadata
@@ -15,8 +16,13 @@ def scan_cache(config):
         if subdir.is_dir():
             speaker_names.append(subdir.name)
     speaker_names = sorted(speaker_names)
+    g2p = G2PProcessor()
+    phonemes = g2p.phoneme_vocabs
+    languages = g2p.languages
     metadata = {
-            "speakers": speaker_names # speaker list
+            "speakers": speaker_names, # speaker list
+            "phonemes": phonemes,
+            "languages": languages
             }
 
     with open(metadata_path, 'w') as f:

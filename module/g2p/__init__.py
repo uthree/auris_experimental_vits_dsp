@@ -2,7 +2,7 @@ from typing import List, Union, Tuple
 import torch
 
 from .japanese import JapaneseExtractor
-from .english import EnglishExtractor
+#from .english import EnglishExtractor
 
 
 class G2PProcessor:
@@ -119,4 +119,3 @@ class G2PProcessor:
         language_ids = torch.LongTensor(language_ids)
 
         return ids, lengths, language_ids
-
