@@ -23,7 +23,6 @@ class Infer:
         vits = Vits.load_from_checkpoint(checkpoint_path)
         self.generator = vits.generator.to(device)
 
-        # TODO: load from config
         self.max_lm_tokens = self.config.infer.max_lm_tokens
         self.max_phonemes = self.config.infer.max_phonemes
         self.max_frames = self.config.infer.max_frames
