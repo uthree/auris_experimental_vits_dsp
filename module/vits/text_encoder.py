@@ -24,7 +24,7 @@ class TextEncoder(nn.Module):
         self.lm_proj = nn.Linear(lm_dim, internal_channels)
         self.phoneme_embedding = nn.Embedding(num_phonemes, internal_channels)
         self.language_embedding = nn.Embedding(num_languages, internal_channels)
-        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels)
+        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
         self.transformer = RelativePositionTransformerDecoder(
                 internal_channels,
                 internal_channels * 4,
