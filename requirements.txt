@@ -18,3 +18,4 @@ sentencepiece
 sox
 soundfile
 music21
+gradio

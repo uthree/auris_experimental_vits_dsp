@@ -58,7 +58,7 @@ if args.task == 'recon':
 
         # infer
         spk = args.speaker
-        wf = infer.audio_reconstruction(wf, spk).squeeze(1).cpu()
+        wf = infer.audio_reconstruction(wf, spk).cpu()
 
         # save
         save_path = outputs_dir / (path.stem + ".wav")
@@ -81,7 +81,7 @@ elif args.task == 'tts':
         t = json.load(open(path, encoding='utf-8'))
         for k, v in zip(t.keys(), t.values()):
             print(f"  Inferencing {k}")
-            wf = infer.text_to_speech(**v).squeeze(1).cpu()
+            wf = infer.text_to_speech(**v).cpu()
 
             # save
             save_path = outputs_dir / (f"{path.stem}_{k}.wav")

@@ -73,9 +73,9 @@ class Infer:
                 lang,
                 spk,
                 )
-        return wf
+        return wf.squeeze(0)
 
-    # wf: [1, Length]
+    # wf: [Channels, Length]
     def audio_reconstruction(self, wf: torch.Tensor, speaker:str):
         spk = torch.LongTensor([self.speaker_id(speaker)])
         wf = wf.sum(dim=0, keepdim=True)
@@ -88,7 +88,7 @@ class Infer:
         spk = spk.to(device)
 
         wf = self.generator.audio_reconstruction(spec, spec_len, spk)
-        return wf
+        return wf.squeeze(0)
 
     def singing_voice_conversion(self):
         pass

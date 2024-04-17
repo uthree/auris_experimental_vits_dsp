@@ -174,8 +174,8 @@
         "n_fft": 1920,
         "frame_size": 480,
         "sample_rate": 48000,
-        "max_lm_tokens": 30,
-        "max_phonemes": 100,
+        "max_lm_tokens": 50,
+        "max_phonemes": 500,
         "max_frames": 2000,
         "device": "cuda"
     }
