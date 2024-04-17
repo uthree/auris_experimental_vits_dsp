@@ -11,6 +11,7 @@ class TextEncoder(nn.Module):
             num_phonemes=512,
             num_languages=256,
             internal_channels=256,
+            speaker_embedding_dim=256,
             content_channels=192,
             n_heads=4,
             lm_dim=768,
@@ -23,6 +24,7 @@ class TextEncoder(nn.Module):
         self.lm_proj = nn.Linear(lm_dim, internal_channels)
         self.phoneme_embedding = nn.Embedding(num_phonemes, internal_channels)
         self.language_embedding = nn.Embedding(num_languages, internal_channels)
+        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels)
         self.transformer = RelativePositionTransformerDecoder(
                 internal_channels,
                 internal_channels * 4,
@@ -45,6 +47,7 @@ class TextEncoder(nn.Module):
     # x_length: [BatchSize]
     # y: [BatchSize, Length_y, lm_dim]
     # y_length [BatchSize]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
     # lang: [BatchSize]
     # 
     # Outputs:
@@ -52,7 +55,7 @@ class TextEncoder(nn.Module):
     #   mean: [BatchSize, content_channels, Length_x]
     #   logvar: [BatchSize, content_channels, Length_x]
     #   z_mask: [BatchSize, 1, Length_x]
-    def forward(self, x, x_length, y, y_length, lang):
+    def forward(self, x, x_length, y, y_length, spk, lang):
         # generate mask
         # x mask
         max_length = x.shape[1]
@@ -74,6 +77,7 @@ class TextEncoder(nn.Module):
         lang = lang.unsqueeze(1) # [B, 1, C]
         x = x + lang # language conditioning
         x = x.mT # [B, C, L_x]
+        x = x + self.speaker_input(spk)
         x = self.transformer(x, x_mask, y, y_mask) # [B, C, L_x]
         x = self.post(x) * x_mask # [B, 2C, L_x]
         mean, logvar = torch.chunk(x, 2, dim=1)

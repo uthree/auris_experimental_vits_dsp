@@ -95,7 +95,7 @@ class PriorEncoder(nn.Module):
 
     def forward(self, spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, f0, energy, spk):
         # encode text
-        text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, lang)
+        text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, spk, lang)
 
         # remove speaker infomation
         z_p = self.flow(z, spec_mask, spk)
@@ -136,7 +136,7 @@ class PriorEncoder(nn.Module):
     
     def text_to_speech(self, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, spk, noise_scale=0.6, max_frames=2000, use_sdp=True, duration_scale=1.0):
         # encode text
-        text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, lang)
+        text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, spk, lang)
 
         # predict duration
         if use_sdp:

@@ -68,6 +68,7 @@
                     "num_languages": 256,
                     "lm_dim": 768,
                     "internal_channels": 256,
+                    "speaker_embedding_dim": 256,
                     "content_channels": 192,
                     "n_heads": 4,
                     "num_layers": 4,
