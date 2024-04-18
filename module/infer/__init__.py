@@ -52,10 +52,10 @@ class Infer:
             style_text: Union[None, str] = None
             ):
         spk = torch.LongTensor([self.speaker_id(speaker)])
-        lm_feat, lm_feat_len = self.lm.encode([text], self.max_lm_tokens)
         if style_text is None:
             style_text = text
-        phoneme, phoneme_len, lang = self.g2p.encode([style_text], [language], self.max_phonemes)
+        lm_feat, lm_feat_len = self.lm.encode([style_text], self.max_lm_tokens)
+        phoneme, phoneme_len, lang = self.g2p.encode([text], [language], self.max_phonemes)
 
         device = self.device
         phoneme = phoneme.to(device)
@@ -76,6 +76,7 @@ class Infer:
         return wf.squeeze(0)
 
     # wf: [Channels, Length]
+    @torch.inference_mode()
     def audio_reconstruction(self, wf: torch.Tensor, speaker:str):
         spk = torch.LongTensor([self.speaker_id(speaker)])
         wf = wf.sum(dim=0, keepdim=True)
