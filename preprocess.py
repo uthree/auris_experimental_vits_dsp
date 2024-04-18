@@ -2,6 +2,7 @@ import os
 import argparse
 import json
 from pathlib import Path
+import shutil
 
 from module.preprocess.jvs import preprocess_jvs
 from module.preprocess.scan import scan_cache
@@ -39,5 +40,6 @@ if not args.scan_only:
 
 print(f"Scaning dataset cache")
 scan_cache(config)
+shutil.copy(args.config, 'models/config.json')
 
 print(f"Complete!")

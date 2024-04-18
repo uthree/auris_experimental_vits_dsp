@@ -30,7 +30,7 @@ class G2PProcessor:
 
     def _g2p_single(self, text, language):
         mod = self.extractors[language]
-        return mod.g2p(text)
+        return ['<pad>'] + mod.g2p(text)
 
     def _g2p_multiple(self, text, language):
         result = []
@@ -79,7 +79,7 @@ class G2PProcessor:
         if language in self.languages:
             return self.languages.index(language)
         else:
-            return 0 # unknown
+            return 0
 
     def _l2id_multiple(self, languages):
         result = []

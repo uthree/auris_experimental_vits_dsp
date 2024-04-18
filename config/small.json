@@ -141,7 +141,7 @@
         "type": "rinna_roberta",
         "options": {
             "hf_repo": "rinna/japanese-roberta-base",
-            "layer": 12
+            "layer": 4
         }
     },
     "preprocess": {
@@ -161,7 +161,7 @@
         "data_module": {
             "cache_dir": "dataset_cache",
             "metadata": "models/metadata.json",
-            "batch_size": 12,
+            "batch_size": 4,
             "num_workers": 7
         },
         "trainer": {

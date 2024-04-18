@@ -21,7 +21,7 @@ mkdir audio_inputs # ここに入力音声ファイルを入れる
 2. 推論する。  
 `-s 話者名`で話者を指定する必要がある。 
 ```sh
-python3 infer.py -c config/base.json -i audio_inputs -t recon -s jvs001
+python3 infer.py -i audio_inputs -t recon -s jvs001
 ```
 
 3. `outputs/`内に出力ファイルが生成されるので、確認する。
@@ -37,7 +37,7 @@ mkdir text_inputs # ここに台本を入れる
 
 2. 推論する。
 ```sh
-python3 infer.py -c config/base.json -i text_inputs -t tts
+python3 infer.py -i text_inputs -t tts
 ```
 
 #### 設定項目の詳細

@@ -136,10 +136,9 @@ class PitchEnergyEstimator(nn.Module):
     def id2freq(self, ids):
         fmin = self.min_frequency
         cpo = self.classes_per_octave
-        nc = self.num_classes
         x = ids.to(torch.float)
         x = fmin * (2 ** (x / cpo))
-        x[x <= self.f0_min] = 0
+        x[x <= self.min_frequency] = 0
         return x
     
     # z_p: [BatchSize, content_channels, Length]
@@ -151,7 +150,7 @@ class PitchEnergyEstimator(nn.Module):
         logits, energy = self.forward(z_p, spk)
         probs, indices = torch.topk(logits, k, dim=1)
         probs = F.softmax(probs, dim=1)
-        freqs = self.freq2id(indices)
+        freqs = self.id2freq(indices)
         f0 = (probs * freqs).sum(dim=1, keepdim=True)
         f0[f0 <= self.min_frequency] = 0
         return f0, energy
@@ -643,7 +642,7 @@ class Decoder(nn.Module):
         f0_label = self.pitch_energy_estimator.freq2id(f0).squeeze(1)
         loss_pe = pitch_estimation_loss(f0_logits, f0_label)
         loss_ee = (estimated_energy - energy).abs().mean()
-        loss = loss_pe + loss_ee
+        loss = loss_pe * 25.0 + loss_ee * 10.0
         loss_dict = {
             "Pitch Estimation": loss_pe.item(),
             "Energy Estimation": loss_ee.item()
@@ -664,11 +663,18 @@ class Decoder(nn.Module):
     # content: [BatchSize, content_channels, Length]
     # f0: [BatchSize, 1, Length]
     # Output: [BatchSize, 1, Length * frame_size]
+    # energy: [BatchSize, 1, Length]
+    # f0: [BatchSize, 1, Length]
     # reference: None or [BatchSize, content_channels, NumReferenceVectors]
     # alpha: float 0 ~ 1.0
     # k: int
-    def infer(self, content, spk, reference=None, alpha=0, k=4, metrics='cos'):
-        f0, energy = self.pitch_energy_estimator.infer(content, spk)
+    def infer(self, content, spk, energy=None, f0=None, reference=None, alpha=0, k=4, metrics='cos'):
+        if energy is None or f0 is None:
+            f0_est, energy_est = self.pitch_energy_estimator.infer(content, spk)
+        if energy is None:
+            energy = energy_est
+        if f0 is None:
+            f0 = f0_est
 
         # run feature retrieval if got reference vectors
         if reference is not None:
@@ -679,3 +685,7 @@ class Decoder(nn.Module):
         # filter network
         output = self.filter_net(content, f0, energy, spk, source)
         return output
+    
+    def estimate_pitch_energy(self, content, spk):
+        f0, energy = self.pitch_energy_estimator(content, spk)
+        return f0, energy

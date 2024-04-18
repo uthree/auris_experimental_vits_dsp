@@ -14,6 +14,7 @@ import pytorch_lightning
 from module.utils.config import load_json_file
 from module.vits import Vits
 from module.utils.dataset import VitsDataModule
+from module.utils.safetensors import save_tensors
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="train")
@@ -32,6 +33,8 @@ if __name__ == '__main__':
             if batch_idx % self.interval == 0:
                 ckpt_path = self.models_dir / "vits.ckpt"
                 trainer.save_checkpoint(ckpt_path)
+                generator_path = self.models_dir / "generator.safetensors"
+                save_tensors(pl_module.generator.state_dict(), generator_path)
 
     config = load_json_file(args.config)
     dm = VitsDataModule(**config.train.data_module)

@@ -9,19 +9,19 @@ from torchaudio.functional import resample
 from module.infer import Infer
 
 parser = argparse.ArgumentParser(description="inference")
-parser.add_argument('-c', '--config', default='config/base.json')
+parser.add_argument('-c', '--config', default='mdoels/config.json')
 parser.add_argument('-t', '--task', choices=['tts', 'recon', 'svc', 'svs'], default='tts')
 parser.add_argument('-s', '--speaker', default='jvs001')
 parser.add_argument('-i', '--inputs', default='inputs')
 parser.add_argument('-o', '--outputs', default='outputs')
-parser.add_argument('-ckpt', '--checkpoint', default='models/vits.ckpt')
+parser.add_argument('-m', '--model', default='models/generator.safetensors')
 parser.add_argument('-meta', '--metadata', default='models/metadata.json')
 args = parser.parse_args()
 
 outputs_dir = Path(args.outputs)
 
 # load model
-infer = Infer(args.checkpoint, args.config, args.metadata)
+infer = Infer(args.model, args.config, args.metadata)
 device = infer.device
 
 # support audio formats
