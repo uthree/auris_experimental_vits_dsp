@@ -62,7 +62,7 @@ class Vits(L.LightningModule):
         dur_logit_fake = self.duration_discriminator(text_encoded, text_mask, fake_log_duration, spk_emb)
         loss_dadv = duration_generator_adversarial_loss(dur_logit_fake, text_mask)
 
-        lossG += loss_mel * 10.0 + loss_dsp + loss_feat + loss_adv + loss_dadv
+        lossG += loss_mel * 45.0 + loss_dsp + loss_feat + loss_adv + loss_dadv
         self.manual_backward(lossG)
         opt_g.step()
         opt_g.zero_grad()

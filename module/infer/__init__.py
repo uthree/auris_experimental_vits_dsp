@@ -136,7 +136,18 @@ class Infer:
         for note in notes:
             lyrics = note['lyrics']
             energy = note['energy']
-            # TODO: 生成処理を書く
+            pitch = note['pitch']
+
+            # ノートの始点と終点をフレーム単位に変換
+            onset = round((note['onset'] - t_begin) / fps)
+            offset = round((note['offset'] - t_end) / fps)
+
+            # 代入
+            pitch[onset:offset] = pitch
+            energy[onset:offset] = energy
+
+            # TODO: 続き
+
 
     def _f02midi(self, f0):
         return torch.log2(f0 / 440.0) * 12.0 + 69.0
