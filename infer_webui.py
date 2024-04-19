@@ -36,8 +36,8 @@ def text_to_speech(text, style_text, speaker, language):
     if style_text == "":
         style_text = text
     wf = infer.text_to_speech(text, speaker, language, style_text)
-    uuid = uuid.uuid4()
-    output_file_name = f"{uuid}.wav"
+    name = uuid.uuid4()
+    output_file_name = f"{name}.wav"
     save_path = outputs_dir / output_file_name
     torchaudio.save(save_path, wf, sample_rate=infer.sample_rate)
     return save_path
