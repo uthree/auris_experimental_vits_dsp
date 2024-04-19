@@ -83,7 +83,9 @@ class Generator(nn.Module):
             noise_scale=0.6,
             max_frames=2000,
             use_sdp=True,
-            duration_scale=1.0
+            duration_scale=1.0,
+            pitch_shift=0.0,
+            energy_scale=1.0,
             ):
         spk = self.speaker_embedding(spk)
         z = self.prior_encoder.text_to_speech(
@@ -92,7 +94,12 @@ class Generator(nn.Module):
                 max_frames=max_frames,
                 use_sdp=use_sdp,
                 duration_scale=duration_scale)
-        fake = self.decoder.infer(z, spk)
+        f0, energy = self.decoder.estimate_pitch_energy(z, spk)
+        pitch = torch.log2((f0 + 1e-6) / 440.0) * 12.0
+        pitch += pitch_shift
+        f0 = 440.0 * 2 ** (pitch / 12.0)
+        energy = energy * energy_scale
+        fake = self.decoder.infer(z, spk, f0=f0, energy=energy)
         return fake
 
     @torch.no_grad()

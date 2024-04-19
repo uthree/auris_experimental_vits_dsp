@@ -687,5 +687,5 @@ class Decoder(nn.Module):
         return output
     
     def estimate_pitch_energy(self, content, spk):
-        f0, energy = self.pitch_energy_estimator(content, spk)
+        f0, energy = self.pitch_energy_estimator.infer(content, spk)
         return f0, energy
