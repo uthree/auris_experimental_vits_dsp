@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 
 from module.preprocess.jvs import preprocess_jvs
+from module.preprocess.wave_and_text import preprocess_wave_and_text
 from module.preprocess.scan import scan_cache
 from module.utils.config import load_json_file
 
@@ -12,6 +13,8 @@ from module.utils.config import load_json_file
 def get_preprocess_method(dataset_type):
     if dataset_type == 'jvs':
         return preprocess_jvs
+    if dataset_type == 'wav-txt':
+        return preprocess_wave_and_text
     else:
         raise "Unknown dataset type"
 

@@ -13,11 +13,24 @@
 python3 preprocess.py jvs jvs_ver1/ -c config/base.json 
 ```
 
-### MoeSpeech
-準備中
 
 ### 自作データセット
-データセットを自作する場合(準備中)
+データセットを自作する場合、まず以下のディレクトリ構成を用意する。
+```
+root/
+	- speaker001/
+		- speech001.wav
+		- speech001.txt
+		- speech002.wav
+		- speech002.txt
+	- speaker02/
+		- speech001.wav
+		- speech001.txt
+		- speech002.wav
+		- speech002.txt
+```
+wavファイルと同じファイル名のテキストファイルに、その書き起こしが入る形にする。
+
 
 ## 学習を実行
 ```sh
