@@ -15,21 +15,30 @@ python3 preprocess.py jvs jvs_ver1/ -c config/base.json
 
 
 ### 自作データセット
-データセットを自作する場合、まず以下のディレクトリ構成を用意する。
+データセットを自作する場合、まず以下の構成のディレクトリを用意する。  
+`root_dir`の名前、`speaker001`等の名前は何でもよいが、半角英数字で命名することを推奨。  
+書き起こしの言語が日本語でない場合は、 `preprocess/wave_and_text.py`の`LANGUAGE`を書き換える。
 ```
-root/
+root_dir/
 	- speaker001/
 		- speech001.wav
 		- speech001.txt
 		- speech002.wav
 		- speech002.txt
+		...
 	- speaker02/
 		- speech001.wav
 		- speech001.txt
 		- speech002.wav
 		- speech002.txt
+		...
+	...
 ```
-wavファイルと同じファイル名のテキストファイルに、その書き起こしが入る形にする。
+wavファイルと同じファイル名のテキストファイルに、その書き起こしが入る形にする。  
+データセットが用意できたら、前処理を実行する。
+```sh
+python3 preprocess.py wav-txt root_dir/ -c config/base.json 
+```
 
 
 ## 学習を実行
