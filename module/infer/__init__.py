@@ -58,7 +58,6 @@ class Infer:
             style_text: Union[None, str] = None,
             duration_scale=1.0,
             pitch_shift=0.0,
-            energy_scale=1.0
             ):
         spk = torch.LongTensor([self.speaker_id(speaker)])
         if style_text is None:
@@ -83,7 +82,6 @@ class Infer:
                 spk,
                 duration_scale=duration_scale,
                 pitch_shift=pitch_shift,
-                energy_scale=energy_scale,
                 )
         return wf.squeeze(0)
 
