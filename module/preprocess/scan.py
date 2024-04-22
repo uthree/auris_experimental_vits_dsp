@@ -20,11 +20,15 @@ def scan_cache(config):
     phonemes = g2p.phoneme_vocabs
     languages = g2p.languages
     num_harmonics = config.vits.generator.decoder.num_harmonics
+    sample_rate = config.vits.generator.decoder.sample_rate
+    frame_size = config.vits.generator.decoder.frame_size
     metadata = {
             "speakers": speaker_names, # speaker list
             "phonemes": phonemes,
             "languages": languages,
-            "num_harmonics": num_harmonics
+            "num_harmonics": num_harmonics,
+            "sample_rate": sample_rate,
+            "frame_size": frame_size
             }
 
     with open(metadata_path, 'w') as f:
