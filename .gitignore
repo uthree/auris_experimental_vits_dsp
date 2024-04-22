@@ -181,3 +181,5 @@ audio_inputs/*
 audio_inputs
 flagged/
 flagged/*
+my_config/*
+my_config/
