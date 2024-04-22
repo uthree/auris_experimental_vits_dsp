@@ -156,8 +156,8 @@
         "data_module": {
             "cache_dir": "dataset_cache",
             "metadata": "models/metadata.json",
-            "batch_size": 56,
-            "num_workers": 63
+            "batch_size": 16,
+            "num_workers": 15
         },
         "trainer": {
             "devices": "auto",
