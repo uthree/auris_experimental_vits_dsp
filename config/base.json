@@ -51,7 +51,7 @@
             },
             "speaker_embedding": {
                 "num_speakers": 8192,
-                "embedding_dim": 128
+                "embedding_dim": 256
             },
             "prior_encoder": {
                 "flow": {

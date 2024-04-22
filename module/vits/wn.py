@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.nn.utils import weight_norm, remove_weight_norm
+from torch.nn.utils.parametrizations import weight_norm, remove_weight_norm
 
 
 # WN module from https://arxiv.org/abs/1609.03499

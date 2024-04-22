@@ -9,7 +9,7 @@ class DiscriminatorP(nn.Module):
     def __init__(self, period, kernel_size=5, stride=3, channels=32, channels_mul=4, num_layers=4, max_channels=1024, use_spectral_norm=False):
         super().__init__()
         self.period = period
-        norm_f = nn.utils.weight_norm if use_spectral_norm == False else nn.utils.spectral_norm
+        norm_f = nn.utils.parametrizations.weight_norm if use_spectral_norm == False else nn.utils.parametrizations.spectral_norm
         
         k = kernel_size
         s = stride
