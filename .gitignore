@@ -167,8 +167,8 @@ cython_debug/
 *.mp3
 *.swp
 *.swo
-module/model_components/monotonic_align/core.c
-module/model_components/monotonic_align/build/*
+module/vits/monotonic_align/core.c
+module/vits/monotonic_align/build/*
 dataset_cache/*
 models/*
 models
