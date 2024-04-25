@@ -183,3 +183,5 @@ flagged/
 flagged/*
 my_config/*
 my_config/
+backups/*
+backups
