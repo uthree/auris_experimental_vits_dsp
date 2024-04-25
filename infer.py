@@ -9,7 +9,7 @@ from torchaudio.functional import resample
 from module.infer import Infer
 
 parser = argparse.ArgumentParser(description="inference")
-parser.add_argument('-c', '--config', default='mdoels/config.json')
+parser.add_argument('-c', '--config', default='models/config.json')
 parser.add_argument('-t', '--task', choices=['tts', 'recon', 'svc', 'svs'], default='tts')
 parser.add_argument('-s', '--speaker', default='jvs001')
 parser.add_argument('-i', '--inputs', default='inputs')
@@ -86,3 +86,24 @@ elif args.task == 'tts':
             # save
             save_path = outputs_dir / (f"{path.stem}_{k}.wav")
             torchaudio.save(save_path, wf, infer.sample_rate)
+
+elif args.task == 'svs':
+    print("Task: Singing Voice Synthesis")
+
+    inputs_dir = Path(args.inputs)
+
+    # load score
+    inputs = []
+    for path in inputs_dir.glob("*.json"):
+        inputs.append(path)
+
+    # inference
+    for path in inputs:
+        print(f"Inferencing {path}")
+        score = json.load(open(path, encoding='utf-8'))
+        wf = infer.singing_voice_synthesis(score)
+
+        # save
+        save_path = outputs_dir / (path.stem + ".wav")
+        torchaudio.save(save_path, wf, infer.sample_rate)
+

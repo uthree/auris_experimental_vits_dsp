@@ -30,7 +30,7 @@ class G2PProcessor:
 
     def _g2p_single(self, text, language):
         mod = self.extractors[language]
-        return ['<pad>'] + mod.g2p(text)
+        return mod.g2p(text)
 
     def _g2p_multiple(self, text, language):
         result = []
@@ -38,14 +38,13 @@ class G2PProcessor:
             result.append(self._g2p_single(t, l))
         return result
 
-    def phoneme_to_id(self, phonemes: Union[List[str], List[List[str]]], max_length: int):
+    def phoneme_to_id(self, phonemes: Union[List[str], List[List[str]]]):
         if type(phonemes[0]) == list:
-            return self._p2id_multiple(phonemes, max_length)
+            return self._p2id_multiple(phonemes)
         elif type(phonemes[0]) == str:
-            return self._p2id_single(phonemes, max_length)
+            return self._p2id_single(phonemes)
 
-    def _p2id_single(self, phonemes: List[str], max_length: int):
-        length = len(phonemes)
+    def _p2id_single(self, phonemes: List[str]):
         ids = []
         for p in phonemes:
             if p in self.phoneme_vocabs:
@@ -53,21 +52,14 @@ class G2PProcessor:
             else:
                 print("warning: unknown phoneme.")
                 ids.append(0)
-        while len(ids) < max_length:
-            ids.append(0) # padding
-        if len(ids) > max_length:
-            ids = ids[:max_length]
-        length = min(length, max_length)
-        return ids, length
+        return ids
 
-    def _p2id_multiple(self, phonemes: List[List[str]], max_length: int):
+    def _p2id_multiple(self, phonemes: List[List[str]]):
         sequences = []
-        lengths = []
         for s in phonemes:
-            out, length = self._p2id_single(s, max_length)
+            out = self._p2id_single(s)
             sequences.append(out)
-            lengths.append(length)
-        return sequences, lengths
+        return sequences
 
     def language_to_id(self, languages: Union[str, List[str]]):
         if type(languages) == str:
@@ -110,8 +102,7 @@ class G2PProcessor:
         return results
 
     def encode(self, sentences: List[str], languages: List[str], max_length: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        phonemes = self.grapheme_to_phoneme(sentences, languages)
-        ids, lengths = self.phoneme_to_id(phonemes, max_length)
+        ids, lengths = self._enc_multiple(sentences, languages, max_length)
         language_ids = self.language_to_id(languages)
 
         ids = torch.LongTensor(ids)
@@ -119,3 +110,22 @@ class G2PProcessor:
         language_ids = torch.LongTensor(language_ids)
 
         return ids, lengths, language_ids
+    
+    def _enc_single(self, sentence, language, max_length):
+        phonemes = self.grapheme_to_phoneme(sentence, language)
+        ids = self.phoneme_to_id(phonemes)
+        length = min(len(ids), max_length)
+        if len(ids) > max_length:
+            ids = ids[:max_length]
+        while len(ids) < max_length:
+            ids.append(0)
+        return ids, length
+    
+    def _enc_multiple(self, sentences, languages, max_length):
+        seq, lengths = [], []
+        for s, l in zip(sentences, languages):
+            ids, length = self._enc_single(s, l, max_length)
+            seq.append(ids)
+            lengths.append(length)
+        return seq, lengths
+

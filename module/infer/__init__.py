@@ -102,7 +102,10 @@ class Infer:
         return wf.squeeze(0)
 
     def singing_voice_synthesis(self, score):
-        pass
+        parts = score['parts']
+        for part_name, part in zip(parts.keys(), parts.values()):
+            print(f"processing {part_name}")
+            self._svs_generate_part(part)
 
     # TODO: コメントを英語にする、いつかやる。多分。
     def _svs_generate_part(self, part):
@@ -111,10 +114,16 @@ class Infer:
         speaker = part['speaker']
         notes = part['notes']
 
+        # notes をonset でソート
+        notes.sort(key=lambda x: x['onset'])
+
         # get begin and end time
         # 開始時刻[秒]と終了時刻[秒]をノート一覧から探す。もっとも小さいonsetが開始時刻で最も大きいoffsetが終了時刻。
         t_begin = None
         t_end = None
+        # それと歌詞情報を取得する
+        part_phonemes = [] # このパートの音素列
+        note_phoneme_indices = [] # 各ノート毎の(開始index, 終了index)
         for note in notes:
             b = note['onset']
             e = note['offset']
@@ -126,31 +135,57 @@ class Infer:
                 t_end = e
             elif b > t_end:
                 t_end = e
+            
+            # 歌詞情報の処理
+            note_phonemes = self.g2p.grapheme_to_phoneme(note['lyrics'], language)
+            note_phoneme_indices.append((len(part_phonemes), len(part_phonemes) + len(note_phonemes) - 1))
+            part_phonemes.extend(note_phonemes)
+        # 音素の数
+        num_phonemes = len(part_phonemes)
         # パートの長さを求める
         part_length = t_end - t_begin
         # 1秒間に何フレームか
         fps = self.sample_rate / self.frame_size
         # 生成するフレーム数
-        num_frames = math.ceil(part_length / fps)
+        num_frames = math.ceil(part_length * fps)
         # ピッチ列のバッファ。この段階ではまだMIDIのスケール。-infに近い値で埋めておく。(self._midi2f0(-inf) = 0なので、発声がない区間を0Hzにしたい。)
-        pitch = torch.full(num_frames, -1e10)
+        pitch = torch.full([num_frames], -1e10)
         # エネルギー列のバッファ。 これは初期値0
-        energy = torch.full(num_frames, 0.0)
+        energy = torch.full([num_frames], 0.0)
+        # Duration
+        duration = torch.full([num_phonemes], 0.0)
+        # 話者をエンコードする
+        speaker_id = self.speaker_id(speaker)
+        speaker_id = torch.LongTensor([speaker_id])
+        spk = self.generator.speaker_embedding(speaker_id)
+        # 言語をエンコードする
+        lang_id = self.language_id(language)
+        lang = torch.LongTensor([lang_id])
+
+        # 音素とテキスト. LMの特徴量をエンコードする
+        phonemes = torch.LongTensor(self.g2p.phoneme_to_id(part_phonemes)).unsqueeze(1)
+        phonemes_len = torch.LongTensor([phonemes.shape[1]])
+        lm_feat, lm_feat_len = self.lm.encode([style_text], self.max_lm_tokens)
+        text_encoded, text_mean, text_logvar, text_mask = self.generator.prior_encoder.text_encoder(phonemes, phonemes_len, lm_feat, lm_feat_len, spk, lang)
+        # durationを推定する
+        log_dur = self.generator.prior_encoder.stochastic_duration_predictor(text_encoded, text_mask, g=spk, reverse=True)
+        duration = torch.ceil(torch.exp(log_dur)).to(torch.long)
+
         # ノートごとに処理する
-        for note in notes:
-            lyrics = note['lyrics']
-            energy = note['energy']
-            pitch = note['pitch']
+        for i, note in enumerate(notes):
+            phoneme_begin, phoneme_end = note_phoneme_indices[i]
 
             # ノートの始点と終点をフレーム単位に変換
-            onset = round((note['onset'] - t_begin) / fps)
-            offset = round((note['offset'] - t_end) / fps)
+            onset = round((note['onset'] - t_begin) * fps)
+            offset = round((note['offset'] - t_begin) * fps)
 
             # 代入
-            pitch[onset:offset] = pitch
-            energy[onset:offset] = energy
+            pitch[onset:offset] = float(note['pitch'])
+            energy[onset:offset] = float(note['energy'])
 
-            # TODO: 続き
+            # TODO: ビブラートとかフォールとかenergyの調整とか
+
+        print(pitch)
 
 
     def _f02midi(self, f0):
