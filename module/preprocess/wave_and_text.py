@@ -8,7 +8,7 @@ LANGUAGE = 'ja'
 def process_speaker(subdir: Path, processor):
     speaker_name = subdir.stem
     counter = 0
-    for wave_file in tqdm(subdir.glob("*.wav")):
+    for wave_file in tqdm(subdir.rglob("*.wav")):
         text_file = wave_file.parent / (wave_file.stem + ".txt")
         if text_file.exists():
             with open(text_file) as f:
