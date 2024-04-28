@@ -122,7 +122,7 @@ class PriorEncoder(nn.Module):
         loss_dp = torch.sum(((logw_x - logw_y) ** 2) * text_mask) / torch.sum(text_mask)
 
         # predict duration
-        fake_log_duration = self.stochastic_duration_predictor(text_encoded, text_mask, g=spk, reverse=True)
+        fake_log_duration = self.duration_predictor(text_encoded, text_mask, spk)
         real_log_duration = logw_y
 
         loss_dict = {
