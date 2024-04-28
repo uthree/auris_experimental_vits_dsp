@@ -583,7 +583,7 @@ class Decoder(nn.Module):
                  source_num_layers=6,
                  num_harmonics=30,
                  filter_channels=[512, 256, 128, 64, 32],
-                 filter_factors=[5, 4, 4, 4, 3],
+                 filter_factors=[5, 4, 4, 3, 2],
                  filter_resblock_type='1',
                  filter_down_dilations=[[1, 2], [4, 8]],
                  filter_down_kernel_size=3,
