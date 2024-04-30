@@ -25,6 +25,7 @@ from .feature_retrieval import match_features
 # Output: [BatchSize, NumHarmonics+1, Length]
 #
 # length = Frames * frame_size
+@torch.cuda.amp.autocast(enabled=False)
 def oscillate_harmonics(
         f0,
         frame_size=960,
@@ -64,6 +65,7 @@ def oscillate_harmonics(
 # kernels: [BatchSize, fft_bin, Frames]
 #
 # Output: [BatchSize, 1, Frames * frame_size]
+@torch.cuda.amp.autocast(enabled=False)
 def oscillate_noise(kernels, frame_size=960, n_fft=3840):
     device = kernels.device
     N = kernels.shape[0]
@@ -643,7 +645,7 @@ class Decoder(nn.Module):
         f0_label = self.pitch_energy_estimator.freq2id(f0).squeeze(1)
         loss_pe = pitch_estimation_loss(f0_logits, f0_label)
         loss_ee = (estimated_energy - energy).abs().mean()
-        loss = loss_pe * 45.0 + loss_ee * 45.0
+        loss = loss_pe + loss_ee
         loss_dict = {
             "Pitch Estimation": loss_pe.item(),
             "Energy Estimation": loss_ee.item()
