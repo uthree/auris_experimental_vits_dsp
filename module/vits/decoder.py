@@ -645,7 +645,7 @@ class Decoder(nn.Module):
         f0_label = self.pitch_energy_estimator.freq2id(f0).squeeze(1)
         loss_pe = pitch_estimation_loss(f0_logits, f0_label)
         loss_ee = (estimated_energy - energy).abs().mean()
-        loss = loss_pe + loss_ee
+        loss = loss_pe * 45.0 + loss_ee * 45.0
         loss_dict = {
             "Pitch Estimation": loss_pe.item(),
             "Energy Estimation": loss_ee.item()
