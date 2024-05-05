@@ -93,7 +93,7 @@ class PriorEncoder(nn.Module):
         self.duration_predictor = DurationPredictor(**config.duration_predictor)
         self.stochastic_duration_predictor = StochasticDurationPredictor(**config.stochastic_duration_predictor)
 
-    def forward(self, spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, f0, energy, spk):
+    def forward(self, spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, spk):
         # encode text
         text_encoded, m_p, logs_p, text_mask = self.text_encoder(phoneme, phoneme_len, lm_feat, lm_feat_len, spk, lang)
 

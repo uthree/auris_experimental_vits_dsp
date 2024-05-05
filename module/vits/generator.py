@@ -59,7 +59,7 @@ class Generator(nn.Module):
         spk = self.speaker_embedding(spk)
         z, m_q, logs_q, spec_mask = self.posterior_encoder.forward(spec, spec_len, spk)
         energy = estimate_energy(spec)
-        loss_prior, loss_dict_prior, (text_encoded, text_mask, fake_log_duration, real_log_duration) = self.prior_encoder.forward(spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, f0, energy, spk)
+        loss_prior, loss_dict_prior, (text_encoded, text_mask, fake_log_duration, real_log_duration) = self.prior_encoder.forward(spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, spk)
         
         z_crop = crop_features(z, crop_range)
         f0_crop = crop_features(f0, crop_range)
