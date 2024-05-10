@@ -67,5 +67,5 @@ class VitsDataModule(L.LightningDataModule):
                 self.batch_size,
                 shuffle=True,
                 num_workers=self.num_workers,
-                ersistent_workers=(os.name=='nt'))
+                persistent_workers=(os.name=='nt'))
         return dataloader
