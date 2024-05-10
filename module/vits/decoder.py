@@ -450,6 +450,16 @@ class DownBlock(nn.Module):
                  kernel_size=3,
                  interpolation='conv'):
         super().__init__()
+        pad_left = factor // 2
+        pad_right = factor - pad_left
+        self.pad = nn.ReplicationPad1d([pad_left, pad_right])
+        self.interpolation = interpolation
+        self.factor = factor
+        if interpolation == 'conv':
+            self.input_conv = weight_norm(nn.Conv1d(in_channels, out_channels, factor*2, factor))
+        elif interpolation == 'linear':
+            self.input_conv = weight_norm(nn.Conv1d(in_channels, out_channels, 1))
+
         self.convs = nn.ModuleList([])
         for ds in dilations:
             cs = nn.ModuleList([])
@@ -457,34 +467,26 @@ class DownBlock(nn.Module):
                 padding = get_padding(kernel_size, d)
                 cs.append(
                         weight_norm(
-                            nn.Conv1d(in_channels, in_channels, kernel_size, 1, padding, dilation=d, padding_mode='replicate')))
+                            nn.Conv1d(out_channels, out_channels, kernel_size, 1, padding, dilation=d, padding_mode='replicate')))
             self.convs.append(cs)
-        pad_left = factor // 2
-        pad_right = factor - pad_left
-        self.pad = nn.ReplicationPad1d([pad_left, pad_right])
-        self.interpolation = interpolation
-        self.factor = factor
-        if interpolation == 'conv':
-            self.output_conv = weight_norm(nn.Conv1d(in_channels, out_channels, factor*2, factor))
-        elif interpolation == 'linear':
-            self.output_conv = weight_norm(nn.Conv1d(in_channels, out_channels, 1))
+
 
     # x: [BatchSize, in_channels, Length]
     # Output: [BatchSize, out_channels, Length]
     def forward(self, x):
+        if self.interpolation == 'conv':
+            x = self.pad(x)
+            x = self.input_conv(x)
+        elif self.interpolation == 'linear':
+            x = self.pad(x)
+            x = F.avg_pool1d(x, self.factor*2, self.factor) # approximation of linear interpolation
+            x = self.input_conv(x)
         for block in self.convs:
             res = x
             for c in block:
                 x = F.leaky_relu(x, 0.1)
                 x = c(x)
             x = x + res
-        if self.interpolation == 'conv':
-            x = self.pad(x)
-            x = self.output_conv(x)
-        elif self.interpolation == 'linear':
-            x = self.pad(x)
-            x = F.avg_pool1d(x, self.factor*2, self.factor) # approximation of linear interpolation
-            x = self.output_conv(x)
         return x
 
     def remove_weight_norm(self):

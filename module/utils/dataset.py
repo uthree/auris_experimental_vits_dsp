@@ -1,3 +1,4 @@
+import os
 import torch
 import torchaudio
 import json
@@ -65,5 +66,6 @@ class VitsDataModule(L.LightningDataModule):
                 dataset,
                 self.batch_size,
                 shuffle=True,
-                num_workers=self.num_workers)
+                num_workers=self.num_workers,
+                ersistent_workers=(os.name=='nt'))
         return dataloader
