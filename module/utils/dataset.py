@@ -29,16 +29,16 @@ class VitsDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         speaker_id = self.speaker_ids[idx]
         wf, sr = torchaudio.load(self.audio_file_paths[idx])
+        wf = wf.mean(dim=0)
         metadata = torch.load(self.metadata_paths[idx])
-        
+        spec = metadata['spec'].squeeze(0)
         spec_len = metadata['spec_len'].item()
         f0 = metadata['f0'].squeeze(0)
         phoneme = metadata['phonemes'].squeeze(0)
         phoneme_len = metadata['phonemes_len'].item()
         language = metadata['language'].item()
         lm_feat = metadata['lm_feat'].squeeze(0)
-        lm_feat_len = metadata['lm_feat_len'].item()
-        return wf, spec_len, speaker_id, f0, phoneme, phoneme_len, lm_feat, lm_feat_len, language
+        return wf, spec, spec_len, speaker_id, f0, phoneme, phoneme_len, lm_feat, language
 
     def __len__(self):
         return len(self.audio_file_paths)

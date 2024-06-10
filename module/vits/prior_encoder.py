@@ -10,46 +10,6 @@ from .flow import Flow
 from module.utils.energy_estimation import estimate_energy
 
 
-def sequence_mask(length, max_length=None):
-    if max_length is None:
-        max_length = length.max()
-    x = torch.arange(max_length, dtype=length.dtype, device=length.device)
-    return x.unsqueeze(0) < length.unsqueeze(1)
-
-
-def generate_path(duration, mask):
-    """
-    duration: [b, 1, t_x]
-    mask: [b, 1, t_y, t_x]
-    """
-    b, _, t_y, t_x = mask.shape
-    cum_duration = torch.cumsum(duration, -1)
-
-    cum_duration_flat = cum_duration.view(b * t_x)
-    path = sequence_mask(cum_duration_flat, t_y).to(mask.dtype)
-    path = path.view(b, t_x, t_y)
-
-    padding_shape = [[0, 0], [1, 0], [0, 0]]
-    padding = [item for sublist in padding_shape[::-1] for item in sublist]
-
-    path = path - F.pad(path, padding)[:, :-1]
-    path = path.unsqueeze(1).transpose(2,3) * mask
-    return path
-
-
-def kl_divergence_loss(z_p, logs_q, m_p, logs_p, z_mask):
-    z_p = z_p.float()
-    logs_q = logs_q.float()
-    m_p = m_p.float()
-    logs_p = logs_p.float()
-    z_mask = z_mask.float()
-
-    kl = logs_p - logs_q - 0.5
-    kl += 0.5 * ((z_p - m_p)**2) * torch.exp(-2. * logs_p)
-    kl = torch.sum(kl * z_mask)
-    l = kl / torch.sum(z_mask)
-    return l
-
 
 # run Monotonic Alignment Search (MAS).
 # MAS associates phoneme sequences with sounds.

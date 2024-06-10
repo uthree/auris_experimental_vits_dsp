@@ -49,5 +49,5 @@ class RinnaRoBERTaExtractor(LinguisticExtractor):
                     position_ids=position_id_tensor,
                     output_hidden_states=True)
             features = outputs.hidden_states[self.layer]
-        # return features and length
-        return features, token_tensor.shape[1]
+            output = features.mean(dim=1)
+        return output

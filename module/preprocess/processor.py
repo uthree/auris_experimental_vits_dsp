@@ -7,6 +7,7 @@ from torchaudio.functional import resample
 from module.g2p import G2PProcessor
 from module.language_model import LanguageModel
 from module.utils.f0_estimation import estimate_f0
+from module.utils.spectrogram import spectrogram
 
 
 # for dataset preprocess
@@ -20,6 +21,7 @@ class Preprocessor:
         self.max_waveform_length = config.preprocess.max_waveform_length
         self.sample_rate = config.preprocess.sample_rate
         self.frame_size = config.preprocess.frame_size
+        self.n_fft = config.preprocess.n_fft
         self.config = config
 
     def write_cache(self, waveform_path: Path, transcription: str, language: str, speaker_name: str, data_name: str):
@@ -46,6 +48,8 @@ class Preprocessor:
 
         wf = wf.unsqueeze(0) # [1, Length_wf]
 
+        spec = spectrogram(wf, self.n_fft, self.frame_size)
+
         # estimate f0(pitch)
         f0 = estimate_f0(wf, self.sample_rate, self.frame_size, self.pitch_estimation)
 
@@ -53,17 +57,17 @@ class Preprocessor:
         phonemes, phonemes_len, language = self.g2p.encode([transcription], [language], self.max_phonemes)
 
         # get lm features
-        lm_feat, lm_feat_len = self.lm.encode([transcription], self.lm_max_tokens)
+        lm_feat = self.lm.encode([transcription])
 
         # to dict
         metadata = {
+                "spec": spec,
                 "spec_len": spec_len,
                 "f0": f0,
                 "phonemes": phonemes,
                 "phonemes_len": phonemes_len,
                 "language": language,
                 "lm_feat": lm_feat,
-                "lm_feat_len": lm_feat_len,
                 }
 
         # get target dir.

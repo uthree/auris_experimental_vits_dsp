@@ -2,11 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from module.utils.common import get_padding
+
+def get_padding(kernel_size, dilation=1):
+    return int((kernel_size*dilation - dilation)/2)
 
 
 class DiscriminatorP(nn.Module):
-    def __init__(self, period, kernel_size=5, stride=3, channels=32, channels_mul=4, num_layers=4, max_channels=1024, use_spectral_norm=False):
+    def __init__(self, period, kernel_size=5, stride=3, channels=32, channels_mul=2, num_layers=4, max_channels=256, use_spectral_norm=False):
         super().__init__()
         self.period = period
         norm_f = nn.utils.parametrizations.weight_norm if use_spectral_norm == False else nn.utils.parametrizations.spectral_norm
@@ -15,13 +17,13 @@ class DiscriminatorP(nn.Module):
         s = stride
         c = channels
 
-        convs = [nn.Conv2d(1, c, (k, 1), (s, 1), (get_padding(5, 1), 0), padding_mode='replicate')]
+        convs = [nn.Conv2d(1, c, (k, 1), (s, 1), (get_padding(5, 1), 0))]
         for i in range(num_layers):
             c_next = min(c * channels_mul, max_channels)
-            convs.append(nn.Conv2d(c, c_next, (k, 1), (s, 1), (get_padding(5, 1), 0), padding_mode='replicate'))
+            convs.append(nn.Conv2d(c, c_next, (k, 1), (s, 1), (get_padding(5, 1), 0)))
             c = c_next
         self.convs = nn.ModuleList([norm_f(c) for c in convs])
-        self.post = norm_f(nn.Conv2d(c, 1, (3, 1), 1, (1, 0), padding_mode='replicate'))
+        self.post = norm_f(nn.Conv2d(c, 1, (3, 1), 1, (1, 0)))
 
     def forward(self, x):
         fmap = []
@@ -30,7 +32,7 @@ class DiscriminatorP(nn.Module):
         b, c, t = x.shape
         if t % self.period != 0:
             n_pad = self.period - (t % self.period)
-            x = F.pad(x, (0, n_pad), "reflect")
+            x = F.pad(x, (0, n_pad))
             t = t + n_pad
         x = x.view(b, c, t // self.period, self.period)
 
@@ -46,20 +48,21 @@ class DiscriminatorP(nn.Module):
 class MultiPeriodicDiscriminator(nn.Module):
     def __init__(
             self,
-            periods=[1, 2, 3, 5, 7, 11],
+            periods=[1, 2, 5, 7, 11],
             channels=32,
-            channels_mul=4,
-            max_channels=1024,
-            num_layers=4,
+            channels_mul=2,
+            max_channels=256,
+            num_layers=4
             ):
         super().__init__()
         self.sub_discs = nn.ModuleList([])
-        for p in periods:
+        for i, p in enumerate(periods):
             self.sub_discs.append(DiscriminatorP(p,
                                                  channels=channels,
                                                  channels_mul=channels_mul,
                                                  max_channels=max_channels,
-                                                 num_layers=num_layers))
+                                                 num_layers=num_layers,
+                                                 use_spectral_norm=(i==0)))
 
     def forward(self, x):
         x = x.unsqueeze(1)
@@ -73,22 +76,24 @@ class MultiPeriodicDiscriminator(nn.Module):
 
 
 class DiscriminatorR(nn.Module):
-    def __init__(self, resolution=128, channels=16, num_layers=4, max_channels=256):
+    def __init__(self, resolution=128, channels=32, num_layers=6, use_spectral_norm=True):
         super().__init__()
-        norm_f = nn.utils.weight_norm
-        self.convs = nn.ModuleList([norm_f(nn.Conv2d(1, channels, (7, 3), (2, 1), (3, 1)))])
+        norm_f = nn.utils.parametrizations.spectral_norm if use_spectral_norm else nn.utils.parametrizations.weight_norm
+        self.convs = nn.ModuleList([norm_f(nn.Conv2d(1, channels, (7, 3), (1, 1), (3, 1)))])
         self.hop_size = resolution
         self.n_fft = resolution * 4
-        c = channels
         for _ in range(num_layers):
-            c_next = min(c * 2, max_channels)
-            self.convs.append(norm_f(nn.Conv2d(c, c_next, (5, 3), (2, 1), (2, 1))))
-            c = c_next
-        self.post = norm_f(nn.Conv2d(c, 1, 3, 1, 1))
+            self.convs.append(norm_f(nn.Conv2d(channels, channels, (7, 3), (2, 1), (2, 1))))
+        self.post = norm_f(nn.Conv2d(channels, 1, 3, 1, 1))
 
-    def forward(self, x):
+    def spectrogram(self, x):
+        # spectrogram
         w = torch.hann_window(self.n_fft).to(x.device)
         x = torch.stft(x, self.n_fft, self.hop_size, window=w, return_complex=True).abs()
+        return x
+
+    def forward(self, x):
+        x = self.spectrogram(x)
         x = x.unsqueeze(1)
         feats = []
         for l in self.convs:
@@ -105,13 +110,12 @@ class MultiResolutionDiscriminator(nn.Module):
             self,
             resolutions=[128, 256, 512],
             channels=32,
-            num_layers=4,
-            max_channels=256,
+            num_layers=6,
             ):
         super().__init__()
         self.sub_discs = nn.ModuleList([])
-        for r in resolutions:
-            self.sub_discs.append(DiscriminatorR(r, channels, num_layers, max_channels))
+        for i, r in enumerate(resolutions):
+            self.sub_discs.append(DiscriminatorR(r, channels, num_layers, (i==0)))
 
     def forward(self, x):
         feats = []

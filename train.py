@@ -18,7 +18,7 @@ from module.utils.safetensors import save_tensors
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="train")
-    parser.add_argument('-c', '--config', default='config/base.json')
+    parser.add_argument('-c', '--config', default='models/cofnig.json')
     args = parser.parse_args()
 
     class SaveCheckpoint(L.Callback):

@@ -6,6 +6,6 @@ class LinguisticExtractor:
     def __init__(self, *args, **kwargs):
         pass
 
-    # Output: [1, length, lm_dim]
-    def extract(self, str) -> Tuple[torch.Tensor, int]:
+    # Output: [1, lm_dim]
+    def extract(self, str) -> torch.Tensor:
         pass
