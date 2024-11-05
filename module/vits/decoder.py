@@ -92,7 +92,7 @@ def oscillate_full_harmonics(
     uv = (f0 > min_frequency).to(torch.float)
     uv = F.interpolate(uv, Lw, mode='nearest')
     
-    pix = torch.cumsum(2*math.pi*fs/sample_rate, dim=2) % (2*math.pi)
+    pix = torch.cumsum(math.pi*fs/sample_rate, dim=2) % (math.pi)
 
     a = torch.round(sample_rate/torch.clamp(fs, min=20.)*0.5).flatten(1).unsqueeze(1)*2. + 1.
     sinpix = torch.sin(pix)
