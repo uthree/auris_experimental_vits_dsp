@@ -14,7 +14,9 @@ def process_speaker(subdir: Path, processor):
             with open(text_file) as f:
                 text = f.read()
         else:
-            continue
+            text = processor.stt(str(wave_file))
+            with open(text_file, 'w') as f:
+                f.write(text)
         processor.write_cache(
             wave_file,
             text,
@@ -27,6 +29,7 @@ def process_speaker(subdir: Path, processor):
 
 def preprocess_wave_and_text(root: Path, config):
     processor = Preprocessor(config)
+    processor.init_stt_pipeline(LANGUAGE)
     for subdir in root.glob("*/"):
         if subdir.is_dir():
             print(f"Processing {subdir.stem}")
