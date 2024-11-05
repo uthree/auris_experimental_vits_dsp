@@ -23,6 +23,14 @@ class Vits(L.LightningModule):
         self.discriminator = Discriminator(config.discriminator)
         self.duration_discriminator = DurationDiscriminator(**config.duration_discriminator)
         self.config = config
+        
+        self.freeze_generator = config.generator.get("freeze_parameters", False)
+        if self.freeze_generator == True:
+            print(f"Freezing pre-trained generator parameters")
+            for name, p in self.generator.named_parameters():
+                # freeze all parameters except prior encoder
+                if "prior_encoder." not in name:
+                    p.requires_grad = False
 
         # disable automatic optimization
         self.automatic_optimization = False
