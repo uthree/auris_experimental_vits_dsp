@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .decoder import Decoder
+from .decoder import Decoder, FirDecoder
 from .posterior_encoder import PosteriorEncoder
 from .prior_encoder import PriorEncoder
 from .speaker_embedding import SpeakerEmbedding
@@ -14,14 +14,104 @@ from .crop import crop_features
 from module.utils.energy_estimation import estimate_energy
 
 
-class Generator(nn.Module):
+class GeneratorBase(nn.Module):
+    # get decoder module
+    @staticmethod
+    def get_decoder(config):
+        if config.decoder_type == "Fir":
+            return FirDecoder(**config.decoder)
+        else:
+            return Decoder(**config.decoder)
+    
     # initialize from config
     def __init__(self, config):
         super().__init__()
-        self.decoder = Decoder(**config.decoder)
+        self.decoder = self.get_decoder(config)
         self.posterior_encoder = PosteriorEncoder(**config.posterior_encoder)
-        self.prior_encoder = PriorEncoder(config.prior_encoder)
         self.speaker_embedding = SpeakerEmbedding(**config.speaker_embedding)
+
+    # training pass
+    #
+    # spec: [BatchSize, fft_bin, Length]
+    # spec_len: [BatchSize]
+    # f0: [Batchsize, 1, Length]
+    # spk: [BatchSize]
+    # crop_range: Tuple[int, int]
+    #
+    # Outputs:
+    #   dsp_out: [BatchSize, Length * frame_size]
+    #   fake: [BatchSize, Length * frame_size]
+    #   lossG: [1]
+    #   loss_dict: Dict[str: float]
+    #
+    def forward(
+            self,
+            spec,
+            spec_len,
+            f0,
+            spk,
+            crop_range
+            ):
+
+        spk = self.speaker_embedding(spk)
+        z, m_q, logs_q, spec_mask = self.posterior_encoder.forward(spec, spec_len, spk)
+        energy = estimate_energy(spec)
+        
+        z_crop = crop_features(z, crop_range)
+        f0_crop = crop_features(f0, crop_range)
+        energy_crop = crop_features(energy, crop_range)
+        dsp_out, fake, loss_decoder, loss_dict_decoder = self.decoder.forward(z_crop, f0_crop, energy_crop, spk)
+
+        loss_dict = loss_dict_decoder
+        loss = loss_decoder
+
+        return loss, loss_dict, (None, None, None, None, spk.detach(), dsp_out, fake)
+
+    @torch.no_grad()
+    def text_to_speech(
+            self,
+            phoneme,
+            phoneme_len,
+            lm_feat,
+            lm_feat_len,
+            lang,
+            spk,
+            noise_scale=0.6,
+            max_frames=2000,
+            use_sdp=True,
+            duration_scale=1.0,
+            pitch_shift=0.0,
+            energy_scale=1.0,
+            ):
+        print("WARNING: text_to_speech is not implemented for GeneratorBase, using child class implementation instead")
+        return None
+
+    @torch.no_grad()
+    def audio_reconstruction(self, spec, spec_len, spk):
+        # embed speaker
+        spk = self.speaker_embedding(spk)
+
+        # encode linear spectrogram and speaker infomation
+        z, m_q, logs_q, spec_mask = self.posterior_encoder(spec, spec_len, spk)
+
+        # decode
+        fake = self.decoder.infer(z, spk)
+        return fake
+
+    @torch.no_grad()
+    def singing_voice_conversion(self):
+        pass # TODO: write this
+
+    @torch.no_grad()
+    def singing_voice_synthesis(self):
+        pass # TODO: write this
+
+
+class Generator(GeneratorBase):
+    # initialize from config
+    def __init__(self, config):
+        super().__init__(config)
+        self.prior_encoder = PriorEncoder(config.prior_encoder)
 
     # training pass
     #
@@ -101,23 +191,3 @@ class Generator(nn.Module):
         energy = energy * energy_scale
         fake = self.decoder.infer(z, spk, f0=f0, energy=energy)
         return fake
-
-    @torch.no_grad()
-    def audio_reconstruction(self, spec, spec_len, spk):
-        # embed speaker
-        spk = self.speaker_embedding(spk)
-
-        # encode linear spectrogram and speaker infomation
-        z, m_q, logs_q, spec_mask = self.posterior_encoder(spec, spec_len, spk)
-
-        # decode
-        fake = self.decoder.infer(z, spk)
-        return fake
-
-    @torch.no_grad()
-    def singing_voice_conversion(self):
-        pass # TODO: write this
-
-    @torch.no_grad()
-    def singing_voice_synthesis(self):
-        pass # TODO: write this
