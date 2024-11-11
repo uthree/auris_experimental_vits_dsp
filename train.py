@@ -12,14 +12,14 @@ import torch.optim as optim
 import lightning as L
 import pytorch_lightning
 from module.utils.config import load_json_file
-from module.vits import Vits, VitsGenerator
+from module.vits import Vits, VitsGenerator, VitsPitchEnergy
 from module.utils.dataset import VitsDataModule
 from module.utils.safetensors import save_tensors
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="train")
     parser.add_argument('-c', '--config', default='config/base.json')
-    parser.add_argument('-ptg', '--pretraining_generator', action='store_true', help="Whether or not to do pretraining a generator")
+    parser.add_argument('-pt', '--pretraining', choices=['pitchenergy', 'gen', 'none'], default='none', help="Which or not to do pretraining")
     args = parser.parse_args()
 
     class SaveCheckpoint(L.Callback):
@@ -42,21 +42,20 @@ if __name__ == '__main__':
     model_path = Path(config.train.save.models_dir) / "vits.ckpt"
     
     model_loaded = False
-    if args.pretraining_generator == True:
-        if model_path.exists():
-            print(f"Pretrain: loading checkpoint from {model_path}")
-            model = VitsGenerator.load_from_checkpoint(model_path, strict=False)
-            model_loaded = True
-        else:
-            print("Pretrain: initialize generator")
-            model = VitsGenerator(config.vits)
+    model_class = Vits
+    if args.pretraining == 'gen':
+        model_class = VitsGenerator
+    elif args.pretraining == 'pitchenergy':
+        model_class = VitsPitchEnergy
+        
+    if model_path.exists():
+        print(f"{model_class.__name__}: loading checkpoint from {model_path}")
+        model = model_class.load_from_checkpoint(model_path, strict=False)
+        model_loaded = True
     else:
-        if model_path.exists():
-            print(f"loading checkpoint from {model_path}")
-            model = Vits.load_from_checkpoint(model_path, strict=False)
-        else:
-            print("initialize model")
-            model = Vits(config.vits)
+        print(f"{model_class.__name__}: initialize generator")
+        model = model_class(config.vits)
+        model = model.train()
             
     # load pretrained weights if provided
     if config.get("pretrained", None) is not None and model_loaded == False:

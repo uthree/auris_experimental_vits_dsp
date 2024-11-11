@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .decoder import Decoder, FirDecoder
+from .decoder import Decoder, FirDecoder, PitchEnergyDecoder
 from .posterior_encoder import PosteriorEncoder
 from .prior_encoder import PriorEncoder
 from .speaker_embedding import SpeakerEmbedding
@@ -18,6 +18,8 @@ class GeneratorBase(nn.Module):
     # get decoder module
     @staticmethod
     def get_decoder(config):
+        if config.decoder_type == "PitchEnergy":
+            return PitchEnergyDecoder(**config.decoder)
         if config.decoder_type == "Fir":
             return FirDecoder(**config.decoder)
         else:
@@ -46,16 +48,17 @@ class GeneratorBase(nn.Module):
     #
     def forward(
             self,
-            spec,
+            ceps,
             spec_len,
+            autocorr,
             f0,
             spk,
             crop_range
             ):
 
         spk = self.speaker_embedding(spk)
-        z, m_q, logs_q, spec_mask = self.posterior_encoder.forward(spec, spec_len, spk)
-        energy = estimate_energy(spec)
+        z, m_q, logs_q, spec_mask = self.posterior_encoder.forward(ceps, autocorr, spec_len, spk)
+        energy = estimate_energy(ceps)
         
         z_crop = crop_features(z, crop_range)
         f0_crop = crop_features(f0, crop_range)
@@ -108,6 +111,14 @@ class GeneratorBase(nn.Module):
 
 
 class Generator(GeneratorBase):
+    # get decoder module
+    @staticmethod
+    def get_decoder(config):
+        if config.decoder_type == "Fir":
+            return FirDecoder(**config.decoder)
+        else:
+            return Decoder(**config.decoder)
+        
     # initialize from config
     def __init__(self, config):
         super().__init__(config)
@@ -134,8 +145,9 @@ class Generator(GeneratorBase):
     #
     def forward(
             self,
-            spec,
+            ceps,
             spec_len,
+            autocorr,
             phoneme,
             phoneme_len,
             lm_feat,
@@ -147,8 +159,8 @@ class Generator(GeneratorBase):
             ):
 
         spk = self.speaker_embedding(spk)
-        z, m_q, logs_q, spec_mask = self.posterior_encoder.forward(spec, spec_len, spk)
-        energy = estimate_energy(spec)
+        z, m_q, logs_q, spec_mask = self.posterior_encoder.forward(ceps, autocorr, spec_len, spk)
+        energy = estimate_energy(ceps)
         loss_prior, loss_dict_prior, (text_encoded, text_mask, fake_log_duration, real_log_duration) = self.prior_encoder.forward(spec_mask, z, logs_q, phoneme, phoneme_len, lm_feat, lm_feat_len, lang, spk)
         
         z_crop = crop_features(z, crop_range)

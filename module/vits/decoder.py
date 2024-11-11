@@ -115,14 +115,15 @@ def oscillate_noise(kernels, frame_size=960, n_fft=3840):
     Lw = Lf * frame_size # waveform length
     dtype = kernels.dtype
 
-    gaussian_noise = torch.randn(N, Lw, device=device, dtype=torch.float)
+    # gaussian_noise = torch.randn(N, Lw, device=device, dtype=torch.float) # gaussian noise makes a 'pulsey' result
+    uniform_noise = torch.rand(N, Lw, device=device, dtype=torch.float)     # so use uniform noise instead
     kernels = kernels.to(torch.float) # to fp32
 
     # calculate convolution in fourier-domain
     # Since the input is an aperiodic signal such as Gaussian noise,
     # there is no need to consider the phase on the kernel side.
     w = torch.hann_window(n_fft, dtype=torch.float, device=device)
-    noise_stft = torch.stft(gaussian_noise, n_fft, frame_size, window=w, return_complex=True)[:, :, 1:]
+    noise_stft = torch.stft(uniform_noise, n_fft, frame_size, window=w, return_complex=True)[:, :, 1:]
     y_stft = noise_stft * kernels # In fourier domain, Multiplication means convolution.
     y_stft = F.pad(y_stft, [1, 0]) # pad
     y = torch.istft(y_stft, n_fft, frame_size, window=w)
@@ -193,18 +194,24 @@ class PitchEnergyEstimator(nn.Module):
         x[x <= self.min_frequency] = 0
         return x
     
+    def logit2freq(self, logits, k=4, threshold=0.03):
+        probs, indices = torch.topk(logits, k, dim=1)
+        probs = F.softmax(probs, dim=1)
+        freqs = self.id2freq(indices)
+        confidence = probs.max(1, keepdim=True).values
+        f0 = (probs * freqs).sum(dim=1, keepdim=True)
+        f0[f0 <= self.min_frequency] = 0
+        f0 = torch.masked_fill(f0, confidence <= threshold, 0)
+        return f0
+    
     # z_p: [BatchSize, content_channels, Length]
     # spk: [BatchSize, speaker_embedding_dim, Length]
     # Outputs:
     #   f0: [BatchSize, 1, Length]
     #   energy: [BatchSize, 1, Length]
-    def infer(self, z_p, spk, k=4):
+    def infer(self, z_p, spk, k=4, threshold=0.03):
         logits, energy = self.forward(z_p, spk)
-        probs, indices = torch.topk(logits, k, dim=1)
-        probs = F.softmax(probs, dim=1)
-        freqs = self.id2freq(indices)
-        f0 = (probs * freqs).sum(dim=1, keepdim=True)
-        f0[f0 <= self.min_frequency] = 0
+        f0 = self.logit2freq(logits, k, threshold)
         return f0, energy
 
 
@@ -931,10 +938,13 @@ class FirDecoder(nn.Module):
         f0_logits, estimated_energy = self.pitch_energy_estimator(content, spk)
         f0_label = self.pitch_energy_estimator.freq2id(f0).squeeze(1)
         loss_pe = pitch_estimation_loss(f0_logits, f0_label)
+        estimated_f0 = self.pitch_energy_estimator.logit2freq(f0_logits)
+        loss_pe_freq = F.l1_loss(torch.log2(estimated_f0 + 1.), torch.log2(f0 + 1.))
         loss_ee = (estimated_energy - energy).abs().mean()
-        loss = loss_pe * 45.0 + loss_ee * 45.0
+        loss = loss_pe * 45.0 + loss_pe_freq + loss_ee * 45.0
         loss_dict = {
-            "Pitch Estimation": loss_pe.item(),
+            "Pitch Logits Estimation": loss_pe.item(),
+            "Pitch Estimation": loss_pe_freq.item(),
             "Energy Estimation": loss_ee.item()
         }
 
@@ -977,6 +987,62 @@ class FirDecoder(nn.Module):
         # filter network
         output = self.filter_net(content, f0, energy, spk, source)
         return output
+    
+    def estimate_pitch_energy(self, content, spk):
+        f0, energy = self.pitch_energy_estimator.infer(content, spk)
+        return f0, energy
+
+
+class PitchEnergyDecoder(nn.Module):
+    def __init__(self,
+                 sample_rate=48000,
+                 frame_size=960,
+                 n_fft=3840,
+                 n_window=1024,
+                 content_channels=192,
+                 speaker_embedding_dim=256,
+                 pe_internal_channels=256,
+                 pe_num_layers=6):
+        super().__init__()
+        self.frame_size = frame_size
+        self.n_fft = n_fft
+        self.n_window = n_window
+        self.sample_rate = sample_rate
+        self.pitch_energy_estimator = PitchEnergyEstimator(
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                num_layers=pe_num_layers,
+                internal_channels=pe_internal_channels
+                )
+        
+    # training pass
+    #
+    # content: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    #
+    # Outputs:
+    #   f0_logits [BatchSize, num_f0_classes, Length]
+    #   estimated_energy: [BatchSize, 1, Length]
+    #   dsp_out: [BatchSize, Length * frame_size]
+    #   output: [BatchSize, Length * frame_size]
+    def forward(self, content, f0, energy, spk):
+        # estimate energy, f0
+        f0_logits, estimated_energy = self.pitch_energy_estimator(content, spk)
+        f0_label = self.pitch_energy_estimator.freq2id(f0).squeeze(1)
+        loss_pe = pitch_estimation_loss(f0_logits, f0_label)
+        # estimated_f0, estimated_energy = self.pitch_energy_estimator.infer(content, spk)
+        estimated_f0 = self.pitch_energy_estimator.logit2freq(f0_logits)
+        loss_pe_freq = F.l1_loss(torch.log2(estimated_f0 + 1.), torch.log2(f0 + 1.))
+        loss_ee = (estimated_energy - energy).abs().mean()
+        loss = loss_pe * 45.0 + loss_pe_freq + loss_ee * 45.0
+        loss_dict = {
+            "Pitch Logits Estimation": loss_pe.item(),
+            "Pitch Estimation": loss_pe_freq.item(),
+            "Energy Estimation": loss_ee.item()
+        }
+        
+        return None, None, loss, loss_dict
     
     def estimate_pitch_energy(self, content, spk):
         f0, energy = self.pitch_energy_estimator.infer(content, spk)
