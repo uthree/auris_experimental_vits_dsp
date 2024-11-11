@@ -1,0 +1,130 @@
+{
+    "vits": {
+        "segment_size": 32,
+        "generator": {
+            "decoder_type": "Fir",
+            "decoder": {
+                "sample_rate": 48000,
+                "frame_size": 480,
+                "n_fft": 1920,
+                "n_window": 1024,
+                "speaker_embedding_dim": 256,
+                "content_channels": 192,
+                "pe_internal_channels": 128,
+                "pe_num_layers": 3,
+                "source_internal_channels": 256,
+                "source_num_layers": 3,
+                "filter_internal_channels": 256,
+                "filter_num_layers": 3
+            },
+            "posterior_encoder": {
+                "n_fft": 1920,
+                "frame_size": 480,
+                "internal_channels": 192,
+                "speaker_embedding_dim": 256,
+                "content_channels": 192,
+                "kernel_size": 5,
+                "dilation": 1,
+                "num_layers": 6
+            },
+            "speaker_embedding": {
+                "num_speakers": 8192,
+                "embedding_dim": 256
+            },
+            "prior_encoder": {
+                "flow": {
+                    "content_channels": 192,
+                    "internal_channels": 192,
+                    "speaker_embedding_dim": 256,
+                    "kernel_size": 5,
+                    "dilation": 1,
+                    "num_layers": 4,
+                    "num_flows": 4
+                },
+                "text_encoder": {
+                    "num_phonemes": 512,
+                    "num_languages": 256,
+                    "lm_dim": 768,
+                    "internal_channels": 256,
+                    "speaker_embedding_dim": 256,
+                    "content_channels": 192,
+                    "n_heads": 4,
+                    "num_layers": 4,
+                    "window_size": 4
+                },
+                "stochastic_duration_predictor": {
+                    "in_channels": 192,
+                    "filter_channels": 256,
+                    "kernel_size": 5,
+                    "p_dropout": 0.0,
+                    "speaker_embedding_dim": 256
+                },
+                "duration_predictor": {
+                    "content_channels": 192,
+                    "internal_channels": 256,
+                    "speaker_embedding_dim": 256,
+                    "kernel_size": 7,
+                    "num_layers": 4
+                }
+            }
+        },
+        "duration_discriminator": {
+            "content_channels": 192,
+            "speaker_embedding_dim": 256,
+            "num_layers": 3
+        },
+        "optimizer": {
+            "lr": 1e-4,
+            "betas": [
+                0.8,
+                0.99
+            ]
+        }
+    },
+    "language_model": {
+        "type": "rinna_roberta",
+        "options": {
+            "hf_repo": "rinna/japanese-roberta-base",
+            "layer": 12
+        }
+    },
+    "preprocess": {
+        "sample_rate": 48000,
+        "max_waveform_length": 480000,
+        "pitch_estimation": "fcpe",
+        "max_phonemes": 100,
+        "lm_max_tokens": 30,
+        "frame_size": 480,
+        "cache": "dataset_cache",
+        "stt": {
+            "type": "whisper",
+            "model": "kotoba-tech/kotoba-whisper-v2.0"
+        }
+    },
+    "train": {
+        "save": {
+            "models_dir": "models",
+            "interval": 400
+        },
+        "data_module": {
+            "cache_dir": "dataset_cache",
+            "metadata": "models/metadata.json",
+            "batch_size": 32,
+            "num_workers": 7
+        },
+        "trainer": {
+            "devices": "auto",
+            "max_epochs": 1000000,
+            "precision": null
+        }
+    },
+    "infer": {
+        "n_fft": 1920,
+        "frame_size": 480,
+        "sample_rate": 48000,
+        "max_lm_tokens": 50,
+        "max_phonemes": 500,
+        "max_frames": 2000,
+        "device": "cuda"
+    }
+}
