@@ -235,6 +235,8 @@ class DurationPredictor(nn.Module):
         self.output_layer = nn.Conv1d(internal_channels, 1, 1)
 
     def forward(self, x, x_mask, g):
+        x = x.detach()
+        g = g.detach()
         x = (self.phoneme_input(x) + self.speaker_input(g)) * x_mask
         x = self.input_norm(x) * x_mask
         for layer in self.mid_layers:

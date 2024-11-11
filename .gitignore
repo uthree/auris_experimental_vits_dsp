@@ -169,6 +169,7 @@ cython_debug/
 *.swo
 module/vits/monotonic_align/core.c
 module/vits/monotonic_align/build/*
+dataset_cache/
 dataset_cache/*
 models/*
 models
@@ -181,7 +182,9 @@ audio_inputs/*
 audio_inputs
 flagged/
 flagged/*
+.gradio/flagged/
 my_config/*
 my_config/
 backups/*
 backups
+data/

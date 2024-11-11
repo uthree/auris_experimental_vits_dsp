@@ -21,6 +21,45 @@ class Preprocessor:
         self.sample_rate = config.preprocess.sample_rate
         self.frame_size = config.preprocess.frame_size
         self.config = config
+        self.stt_pipeline = None
+        
+    def init_stt_pipeline(self, launguage: str = "ja"):
+        if self.config.preprocess.get("stt", None) is None:
+            return
+
+        if self.config.preprocess.stt.type == "wav2vec2":
+            from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
+            processor = Wav2Vec2Processor.from_pretrained(self.config.preprocess.stt.model)
+            model = Wav2Vec2ForCTC.from_pretrained(self.config.preprocess.stt.model)
+            self.stt_pipeline = (processor, model)
+        elif self.config.preprocess.stt.type == "whisper":
+            from transformers import pipeline
+            model_id = self.config.preprocess.stt.model
+            torch_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model_kwargs = {"attn_implementation": "sdpa"} if torch.cuda.is_available() else {}
+            generate_kwargs = {"language": launguage, "task": "transcribe"}
+            pipe = pipeline(
+                "automatic-speech-recognition",
+                model=model_id,
+                torch_dtype=torch_dtype,
+                device=device,
+                model_kwargs=model_kwargs
+            )
+            # processor = AutoProcessor.from_pretrained(model_id)
+            self.stt_pipeline = (None, lambda x: pipe(x, generate_kwargs=generate_kwargs))
+            
+    def stt(self, waveform):
+        if self.stt_pipeline is None:
+            return None
+
+        processor, model = self.stt_pipeline
+        if processor is not None:
+            inputs = processor(waveform, sampling_rate=self.sample_rate, return_tensors="pt")
+        else:
+            inputs = waveform
+        transcription = model(inputs)["text"]
+        return transcription
 
     def write_cache(self, waveform_path: Path, transcription: str, language: str, speaker_name: str, data_name: str):
         # load waveform file

@@ -25,7 +25,7 @@ from .feature_retrieval import match_features
 # Output: [BatchSize, NumHarmonics+1, Length]
 #
 # length = Frames * frame_size
-@torch.cuda.amp.autocast(enabled=False)
+@torch.amp.autocast('cuda', enabled=False)
 def oscillate_harmonics(
         f0,
         frame_size=960,
@@ -59,13 +59,55 @@ def oscillate_harmonics(
     return harmonics.to(device)
 
 
+# Oscillate full harmonics signal using the BLIT (transformed expression)
+# Adapted from: https://github.com/TylorShine/FIR-SVC/blob/04fd374b9de84f93688888f4dab89aa689a7f84d/modules/vocoder.py#L285
+# 
+# Inputs ---
+# f0: [BatchSize, 1, Frames]
+#
+# frame_size: int
+# sample_rate: float or int
+# min_frequency: float
+#
+# Output: [BatchSize, 1, Length]
+#
+# length = Frames * frame_size
+@torch.amp.autocast("cuda", enabled=False)
+def oscillate_full_harmonics(
+        f0,
+        frame_size=960,
+        sample_rate=48000,
+        min_frequency=20.0,
+    ):
+    
+    N, C, Lf = f0.shape
+    Lw = Lf * frame_size
+    
+    # print(f0)
+    
+    # change length to wave's
+    fs = F.interpolate(f0, Lw, mode='linear')
+    
+    # unvoiced / voiced mask
+    uv = (f0 > min_frequency).to(torch.float)
+    uv = F.interpolate(uv, Lw, mode='nearest')
+    
+    pix = torch.cumsum(math.pi*fs/sample_rate, dim=2) % (math.pi)
+
+    a = torch.round(sample_rate/torch.clamp(fs, min=20.)*0.5).flatten(1).unsqueeze(1)*2. + 1.
+    sinpix = torch.sin(pix)
+    harmonic_source = torch.where(pix < 1e-8, 1., torch.sin(a*pix) / (a*sinpix)) * uv
+
+    return harmonic_source
+
+
 # Oscillate noise via gaussian noise and equalizer
 #
 # fft_bin = n_fft // 2 + 1
 # kernels: [BatchSize, fft_bin, Frames]
 #
 # Output: [BatchSize, 1, Frames * frame_size]
-@torch.cuda.amp.autocast(enabled=False)
+@torch.amp.autocast('cuda', enabled=False)
 def oscillate_noise(kernels, frame_size=960, n_fft=3840):
     device = kernels.device
     N = kernels.shape[0]
@@ -73,14 +115,15 @@ def oscillate_noise(kernels, frame_size=960, n_fft=3840):
     Lw = Lf * frame_size # waveform length
     dtype = kernels.dtype
 
-    gaussian_noise = torch.randn(N, Lw, device=device, dtype=torch.float)
+    # gaussian_noise = torch.randn(N, Lw, device=device, dtype=torch.float) # gaussian noise makes a 'pulsey' result
+    uniform_noise = torch.rand(N, Lw, device=device, dtype=torch.float)     # so use uniform noise instead
     kernels = kernels.to(torch.float) # to fp32
 
     # calculate convolution in fourier-domain
     # Since the input is an aperiodic signal such as Gaussian noise,
     # there is no need to consider the phase on the kernel side.
     w = torch.hann_window(n_fft, dtype=torch.float, device=device)
-    noise_stft = torch.stft(gaussian_noise, n_fft, frame_size, window=w, return_complex=True)[:, :, 1:]
+    noise_stft = torch.stft(uniform_noise, n_fft, frame_size, window=w, return_complex=True)[:, :, 1:]
     y_stft = noise_stft * kernels # In fourier domain, Multiplication means convolution.
     y_stft = F.pad(y_stft, [1, 0]) # pad
     y = torch.istft(y_stft, n_fft, frame_size, window=w)
@@ -100,13 +143,13 @@ class PitchEnergyEstimator(nn.Module):
                  num_layers=6,
                  mlp_mul=3,
                  min_frequency=20.0,
-                 classes_per_octave=48,
+                 max_frequency=1600.0,
                  ):
         super().__init__()
         self.content_channels = content_channels
         self.num_classes = num_classes
-        self.classes_per_octave = classes_per_octave
         self.min_frequency = min_frequency
+        self.max_frequency = max_frequency
 
         self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
         self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
@@ -116,6 +159,8 @@ class PitchEnergyEstimator(nn.Module):
         self.output_norm = LayerNorm(internal_channels)
         self.to_f0_logits = nn.Conv1d(internal_channels, num_classes, 1)
         self.to_energy = nn.Conv1d(internal_channels, 1, 1)
+        
+        self.log2_fmax_fmin = math.log2(self.max_frequency/self.min_frequency)
 
     # z_p: [BatchSize, content_channels, Length]
     # spk: [BatchSize, speaker_embedding_dim, Length]
@@ -131,31 +176,42 @@ class PitchEnergyEstimator(nn.Module):
     # f: [<Any shape allowed>]
     def freq2id(self, f):
         fmin = self.min_frequency
-        cpo = self.classes_per_octave
+        fmax = self.max_frequency
+        # cpo = self.classes_per_octave
         nc = self.num_classes
-        return torch.ceil(torch.clamp(cpo * torch.log2(f / fmin), 0, nc-1)).to(torch.long)
+        # return torch.ceil(torch.clamp(cpo * torch.log2(f / fmin), 0, nc-1)).to(torch.long)
+        return torch.ceil(nc * torch.log2(torch.clamp(f, fmin, fmax)/fmin)/self.log2_fmax_fmin).to(torch.long)
     
     # ids: [<Any shape allowed>]
     def id2freq(self, ids):
         fmin = self.min_frequency
-        cpo = self.classes_per_octave
+        fmax = self.max_frequency
+        # cpo = self.classes_per_octave
+        nc = self.num_classes
         x = ids.to(torch.float)
-        x = fmin * (2 ** (x / cpo))
+        # x = fmin * (2 ** (x / cpo))
+        x = fmin * ((fmax/fmin) ** (x / nc))
         x[x <= self.min_frequency] = 0
         return x
+    
+    def logit2freq(self, logits, k=4, threshold=0.03):
+        probs, indices = torch.topk(logits, k, dim=1)
+        probs = F.softmax(probs, dim=1)
+        freqs = self.id2freq(indices)
+        confidence = probs.max(1, keepdim=True).values
+        f0 = (probs * freqs).sum(dim=1, keepdim=True)
+        f0[f0 <= self.min_frequency] = 0
+        f0 = torch.masked_fill(f0, confidence <= threshold, 0)
+        return f0
     
     # z_p: [BatchSize, content_channels, Length]
     # spk: [BatchSize, speaker_embedding_dim, Length]
     # Outputs:
     #   f0: [BatchSize, 1, Length]
     #   energy: [BatchSize, 1, Length]
-    def infer(self, z_p, spk, k=4):
+    def infer(self, z_p, spk, k=4, threshold=0.03):
         logits, energy = self.forward(z_p, spk)
-        probs, indices = torch.topk(logits, k, dim=1)
-        probs = F.softmax(probs, dim=1)
-        freqs = self.id2freq(indices)
-        f0 = (probs * freqs).sum(dim=1, keepdim=True)
-        f0[f0 <= self.min_frequency] = 0
+        f0 = self.logit2freq(logits, k, threshold)
         return f0, energy
 
 
@@ -690,6 +746,303 @@ class Decoder(nn.Module):
         # filter network
         output = self.filter_net(content, f0, energy, spk, source)
         return output
+    
+    def estimate_pitch_energy(self, content, spk):
+        f0, energy = self.pitch_energy_estimator.infer(content, spk)
+        return f0, energy
+
+    
+class FirSourceNet(nn.Module):
+    def __init__(
+                self,
+                sample_rate=48000,
+                n_fft=3840,
+                frame_size=960,
+                content_channels=192,
+                speaker_embedding_dim=256,
+                internal_channels=512,
+                kernel_size=7,
+                num_layers=6,
+                mlp_mul=3
+            ):
+        super().__init__()
+        self.sample_rate = sample_rate
+        self.n_fft = n_fft
+        self.frame_size = frame_size
+
+        self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
+        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
+        self.energy_input = nn.Conv1d(1, internal_channels, 1)
+        self.f0_input = nn.Conv1d(1, internal_channels, 1)
+        self.input_norm = LayerNorm(internal_channels)
+        self.mid_layers = nn.Sequential(
+                *[ConvNeXtLayer(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
+        self.output_norm = LayerNorm(internal_channels)
+        self.to_amps = nn.Conv1d(internal_channels, 1, 1)
+        self.to_kernels = nn.Conv1d(internal_channels, n_fft // 2 + 1, 1)
+
+    # x: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # energy: [BatchSize, 1, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # Outputs:
+    #   amps: [BatchSize, 1, Length * frame_size]
+    #   kernels: [BatchSize, n_fft //2 + 1, Length]
+    def amps_and_kernels(self, x, f0, energy, spk):
+        x = self.content_input(x) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
+        x = x + self.energy_input(energy)
+        x = self.input_norm(x)
+        x = self.mid_layers(x)
+        x = self.output_norm(x)
+        amps = F.elu(self.to_amps(x)) + 1.0
+        kernels = F.elu(self.to_kernels(x)) + 1.0
+        return amps, kernels
+
+
+    # x: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # Outputs:
+    #   dsp_out: [BatchSize, 1, Length * frame_size]
+    def forward(self, x, f0, energy, spk):
+        amps, kernels = self.amps_and_kernels(x, f0, energy, spk)
+
+        # oscillate source signals
+        harmonics = oscillate_full_harmonics(f0, self.frame_size, self.sample_rate)
+        amps = F.interpolate(amps, scale_factor=self.frame_size, mode='linear')
+        harmonics = harmonics * amps
+        noise = oscillate_noise(kernels, self.frame_size, self.n_fft)
+        source = torch.cat([harmonics, noise], dim=1)
+        # source = torch.cat([harmonics, harmonics], dim=1)
+        dsp_out = torch.sum(source, dim=1, keepdim=True)
+
+        return dsp_out, dsp_out
+    
+    
+class FirFilterNet(nn.Module):
+    def __init__(self,
+                 n_window=1024,
+                 frame_size=960,
+                 content_channels=192,
+                 speaker_embedding_dim=256,
+                 internal_channels=512,
+                 kernel_size=7,
+                 num_layers=6,
+                 mlp_mul=3
+                 ):
+        super().__init__()
+        self.n_window = n_window
+        self.frame_size = frame_size
+        # input layer
+        self.content_input = nn.Conv1d(content_channels, internal_channels, 1)
+        self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
+        self.energy_input = nn.Conv1d(1, internal_channels, 1)
+        self.f0_input = nn.Conv1d(1, internal_channels, 1)
+        self.mid_layers = nn.Sequential(
+                *[ConvNeXtLayer(internal_channels, kernel_size, mlp_mul) for _ in range(num_layers)])
+        self.output_norm = LayerNorm(internal_channels)
+        self.output_layer = nn.Conv1d(internal_channels, n_window, 7, 1, 3, padding_mode='replicate')
+
+    # content: [BatchSize, content_channels, Length(frame)]
+    # f0: [BatchSize, 1, Length(frame)]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    # source: [BatchSize, 1, Length(Waveform)]
+    # Output: [Batchsize, 1, Length * frame_size]
+    def forward(self, content, f0, energy, spk, source):
+        x = self.content_input(content) + self.speaker_input(spk) + self.f0_input(torch.log(F.relu(f0) + 1e-6))
+        x = x + self.energy_input(energy)
+        
+        x = self.mid_layers(x)
+        x = self.output_norm(x)
+        filt = self.output_layer(x).transpose(1, 2)
+        
+        # filter source
+        B, C, L = source.shape
+        source_t = source.reshape(B, -1, self.frame_size)
+        source_t = F.pad(source_t, (self.n_window, self.n_window-1)).unsqueeze(1)
+        bi, bj, c, d = source_t.shape
+        source_t = source_t.transpose(1, 0).view(bj, bi * c, d)
+        filt_v = filt.view(bi, -1, filt.shape[2])
+        filt = filt_v.reshape(bi*filt_v.shape[1], 1, -1)
+        source = F.conv1d(source_t, filt, groups=bi*filt_v.shape[1]).view(bj, bi, filt_v.shape[1], -1).squeeze(0)
+        
+        # overlap and add
+        output_size = L + self.n_window
+        source = F.fold(
+            source.transpose(2, 1),
+            output_size=(1, output_size),
+            kernel_size=(1, self.frame_size + self.n_window),
+            stride=(1, self.frame_size)).squeeze(1)
+
+        return source[:, :, :L]
+
+    def remove_weight_norm(self):
+        pass
+
+
+class FirDecoder(nn.Module):
+    def __init__(self,
+                 sample_rate=48000,
+                 frame_size=960,
+                 n_fft=3840,
+                 n_window=1024,
+                 content_channels=192,
+                 speaker_embedding_dim=256,
+                 pe_internal_channels=256,
+                 pe_num_layers=6,
+                 source_internal_channels=512,
+                 source_num_layers=6,
+                 filter_internal_channels=512,
+                 filter_num_layers=6):
+        super().__init__()
+        self.frame_size = frame_size
+        self.n_fft = n_fft
+        self.n_window = n_window
+        self.sample_rate = sample_rate
+        self.pitch_energy_estimator = PitchEnergyEstimator(
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                num_layers=pe_num_layers,
+                internal_channels=pe_internal_channels
+                )
+        self.source_net = FirSourceNet(
+                sample_rate=sample_rate,
+                n_fft=n_fft,
+                frame_size=frame_size,
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                internal_channels=source_internal_channels,
+                num_layers=source_num_layers,
+                )
+        self.filter_net = FirFilterNet(
+                n_window=n_window,
+                frame_size=frame_size,
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                internal_channels=filter_internal_channels,
+                num_layers=filter_num_layers,
+                )
+    # training pass
+    #
+    # content: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    #
+    # Outputs:
+    #   f0_logits [BatchSize, num_f0_classes, Length]
+    #   estimated_energy: [BatchSize, 1, Length]
+    #   dsp_out: [BatchSize, Length * frame_size]
+    #   output: [BatchSize, Length * frame_size]
+    def forward(self, content, f0, energy, spk):
+        # estimate energy, f0
+        f0_logits, estimated_energy = self.pitch_energy_estimator(content, spk)
+        f0_label = self.pitch_energy_estimator.freq2id(f0).squeeze(1)
+        loss_pe = pitch_estimation_loss(f0_logits, f0_label)
+        estimated_f0 = self.pitch_energy_estimator.logit2freq(f0_logits)
+        loss_pe_freq = F.l1_loss(torch.log2(estimated_f0 + 1.), torch.log2(f0 + 1.))
+        loss_ee = (estimated_energy - energy).abs().mean()
+        loss = loss_pe * 45.0 + loss_pe_freq + loss_ee * 45.0
+        loss_dict = {
+            "Pitch Logits Estimation": loss_pe.item(),
+            "Pitch Estimation": loss_pe_freq.item(),
+            "Energy Estimation": loss_ee.item()
+        }
+
+        # source net
+        dsp_out, source = self.source_net(content, f0, energy, spk)
+        dsp_out = dsp_out.squeeze(1)
+
+        # GAN output
+        output = self.filter_net(content, f0, energy, spk, source)
+        output = output.squeeze(1)
+
+        return dsp_out, output, loss, loss_dict
+
+    # inference pass
+    #
+    # content: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # Output: [BatchSize, 1, Length * frame_size]
+    # energy: [BatchSize, 1, Length]
+    # f0: [BatchSize, 1, Length]
+    # reference: None or [BatchSize, content_channels, NumReferenceVectors]
+    # alpha: float 0 ~ 1.0
+    # k: int
+    def infer(self, content, spk, energy=None, f0=None, reference=None, alpha=0, k=4, metrics='cos'):
+        if energy is None or f0 is None:
+            f0_est, energy_est = self.pitch_energy_estimator.infer(content, spk)
+        if energy is None:
+            energy = energy_est
+        if f0 is None:
+            f0 = f0_est
+            
+        print(f0)
+
+        # run feature retrieval if got reference vectors
+        if reference is not None:
+            content = match_features(content, reference, k, alpha, metrics)
+
+        dsp_out, source = self.source_net(content, f0, energy, spk)
+
+        # filter network
+        output = self.filter_net(content, f0, energy, spk, source)
+        return output
+    
+    def estimate_pitch_energy(self, content, spk):
+        f0, energy = self.pitch_energy_estimator.infer(content, spk)
+        return f0, energy
+
+
+class PitchEnergyDecoder(nn.Module):
+    def __init__(self,
+                 sample_rate=48000,
+                 frame_size=960,
+                 n_fft=3840,
+                 n_window=1024,
+                 content_channels=192,
+                 speaker_embedding_dim=256,
+                 pe_internal_channels=256,
+                 pe_num_layers=6):
+        super().__init__()
+        self.frame_size = frame_size
+        self.n_fft = n_fft
+        self.n_window = n_window
+        self.sample_rate = sample_rate
+        self.pitch_energy_estimator = PitchEnergyEstimator(
+                content_channels=content_channels,
+                speaker_embedding_dim=speaker_embedding_dim,
+                num_layers=pe_num_layers,
+                internal_channels=pe_internal_channels
+                )
+        
+    # training pass
+    #
+    # content: [BatchSize, content_channels, Length]
+    # f0: [BatchSize, 1, Length]
+    # spk: [BatchSize, speaker_embedding_dim, 1]
+    #
+    # Outputs:
+    #   f0_logits [BatchSize, num_f0_classes, Length]
+    #   estimated_energy: [BatchSize, 1, Length]
+    #   dsp_out: [BatchSize, Length * frame_size]
+    #   output: [BatchSize, Length * frame_size]
+    def forward(self, content, f0, energy, spk):
+        # estimate energy, f0
+        f0_logits, estimated_energy = self.pitch_energy_estimator(content, spk)
+        f0_label = self.pitch_energy_estimator.freq2id(f0).squeeze(1)
+        loss_pe = pitch_estimation_loss(f0_logits, f0_label)
+        # estimated_f0, estimated_energy = self.pitch_energy_estimator.infer(content, spk)
+        estimated_f0 = self.pitch_energy_estimator.logit2freq(f0_logits)
+        loss_pe_freq = F.l1_loss(torch.log2(estimated_f0 + 1.), torch.log2(f0 + 1.))
+        loss_ee = (estimated_energy - energy).abs().mean()
+        loss = loss_pe * 45.0 + loss_pe_freq + loss_ee * 45.0
+        loss_dict = {
+            "Pitch Logits Estimation": loss_pe.item(),
+            "Pitch Estimation": loss_pe_freq.item(),
+            "Energy Estimation": loss_ee.item()
+        }
+        
+        return None, None, loss, loss_dict
     
     def estimate_pitch_energy(self, content, spk):
         f0, energy = self.pitch_energy_estimator.infer(content, spk)

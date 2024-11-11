@@ -12,13 +12,14 @@ import torch.optim as optim
 import lightning as L
 import pytorch_lightning
 from module.utils.config import load_json_file
-from module.vits import Vits
+from module.vits import Vits, VitsGenerator, VitsPitchEnergy
 from module.utils.dataset import VitsDataModule
 from module.utils.safetensors import save_tensors
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="train")
     parser.add_argument('-c', '--config', default='config/base.json')
+    parser.add_argument('-pt', '--pretraining', choices=['pitchenergy', 'gen', 'none'], default='none', help="Which or not to do pretraining")
     args = parser.parse_args()
 
     class SaveCheckpoint(L.Callback):
@@ -39,13 +40,33 @@ if __name__ == '__main__':
     config = load_json_file(args.config)
     dm = VitsDataModule(**config.train.data_module)
     model_path = Path(config.train.save.models_dir) / "vits.ckpt"
-
+    
+    model_loaded = False
+    model_class = Vits
+    if args.pretraining == 'gen':
+        model_class = VitsGenerator
+    elif args.pretraining == 'pitchenergy':
+        model_class = VitsPitchEnergy
+        
     if model_path.exists():
-        print(f"loading checkpoint from {model_path}")
-        model = Vits.load_from_checkpoint(model_path)
+        print(f"{model_class.__name__}: loading checkpoint from {model_path}")
+        model = model_class.load_from_checkpoint(model_path, strict=False)
+        model_loaded = True
     else:
-        print("initialize model")
-        model = Vits(config.vits)
+        print(f"{model_class.__name__}: initialize generator")
+        model = model_class(config.vits)
+        model = model.train()
+            
+    # load pretrained weights if provided
+    if config.get("pretrained", None) is not None and model_loaded == False:
+        pretrained_generator_path = config.pretrained.get("generator")
+        if Path(pretrained_generator_path).exists():
+            print(f"Loading pretrained weights from {pretrained_generator_path}")
+            if pretrained_generator_path.endswith(".safetensors"):
+                from module.utils.safetensors import load_tensors
+                model.load_state_dict(load_tensors(pretrained_generator_path), strict=False)
+            else:
+                model.load_state_dict(torch.load(pretrained_generator_path), strict=False)
 
     print("if you need to check tensorboard, run `tensorboard -logdir lightning_logs`")
     cb_save_checkpoint = SaveCheckpoint(config.train.save.models_dir, config.train.save.interval)

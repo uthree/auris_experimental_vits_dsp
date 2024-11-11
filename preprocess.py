@@ -43,6 +43,6 @@ if not args.scan_only:
 
 print(f"Scaning dataset cache")
 scan_cache(config)
-shutil.copy(args.config, 'models/config.json')
+shutil.copy(args.config, f'{config.train.save.models_dir}/config.json')
 
 print(f"Complete!")

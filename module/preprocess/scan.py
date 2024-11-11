@@ -6,7 +6,7 @@ from module.g2p import G2PProcessor
 # create metadata
 def scan_cache(config):
     cache_dir = Path(config.preprocess.cache)
-    models_dir = Path("models")
+    models_dir = Path(config.train.save.models_dir)
     metadata_path = models_dir / "metadata.json"
     if not models_dir.exists():
         models_dir.mkdir()

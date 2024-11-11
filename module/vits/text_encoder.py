@@ -21,7 +21,8 @@ class TextEncoder(nn.Module):
             num_layers=4,
             ):
         super().__init__()
-        self.lm_proj = nn.Linear(lm_dim, internal_channels)
+        # self.lm_proj = nn.Linear(lm_dim, internal_channels)
+        self.lm_proj = nn.Conv1d(lm_dim, internal_channels, 1)
         self.phoneme_embedding = nn.Embedding(num_phonemes, internal_channels)
         self.language_embedding = nn.Embedding(num_languages, internal_channels)
         self.speaker_input = nn.Conv1d(speaker_embedding_dim, internal_channels, 1)
@@ -71,7 +72,7 @@ class TextEncoder(nn.Module):
         y_mask = y_mask.unsqueeze(1).to(y.dtype)
 
         # pass network
-        y = self.lm_proj(y).mT # [B, C, L_y] where C = internal_channels, L_y = Length_y, L_x = Length_x, B = BatchSize
+        y = self.lm_proj(y.mT) # [B, C, L_y] where C = internal_channels, L_y = Length_y, L_x = Length_x, B = BatchSize
         x = self.phoneme_embedding(x) # [B, L_x, C]
         lang = self.language_embedding(lang) # [B, C]
         lang = lang.unsqueeze(1) # [B, 1, C]
@@ -81,5 +82,5 @@ class TextEncoder(nn.Module):
         x = self.transformer(x, x_mask, y, y_mask) # [B, C, L_x]
         x = self.post(x) * x_mask # [B, 2C, L_x]
         mean, logvar = torch.chunk(x, 2, dim=1)
-        z = mean + torch.randn_like(mean) * torch.exp(logvar) * z_mask
+        z = mean + torch.randn_like(mean) * torch.exp(logvar) * z_mask    # reparameterization trick
         return z, mean, logvar, z_mask
